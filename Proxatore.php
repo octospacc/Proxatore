@@ -24,7 +24,7 @@ const EMBEDS_SUFFIXES = [
 define('HISTORY_FILE', './' . $_SERVER['SCRIPT_NAME'] . '.history.jsonl');
 
 function lstrip($str, $sub) {
-    return implode($sub, array_slice(explode($sub, $str), 1));
+	return implode($sub, array_slice(explode($sub, $str), 1));
 }
 
 function fetchContent($url) {
@@ -43,6 +43,13 @@ function fetchContent($url) {
         'body' => $body,
         'code' => $code,
     ];
+}
+
+function makeCanonicalUrl($item) {
+	if (!$item) {
+		return NULL;
+	}
+	return 'https://' . (PLATFORMS[$item['platform']][0] ?? '') . '/' . $item['relativeurl'];
 }
 
 function makeEmbedUrl($platform, $relativeUrl) {
@@ -180,14 +187,14 @@ if (isset($_GET['search']) && ($search = $_GET['search']) !== '') {
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title><?php echo APPNAME; ?></title>
-    <meta name="description" content="<?= htmlspecialchars($immediateResult['description'] ?? 'Content Proxy for viewing media and text from various platforms.') ?>">
-    <meta property="og:title" content="<?= htmlspecialchars($immediateResult['title'] ?? 'Content Proxy') ?>">
-    <meta property="og:description" content="<?= htmlspecialchars($immediateResult['description'] ?? 'View content from supported platforms.') ?>">
-    <meta property="og:type" content="<?= htmlspecialchars($immediateResult['type'] ?? '') ?>">
-    <meta property="og:image" content="<?= htmlspecialchars($immediateResult['image'] ?? '') ?>">
-    <meta property="og:video" content="<?= htmlspecialchars($immediateResult['video'] ?? '') ?>">
-    <meta property="og:url" content="<?= htmlspecialchars("https://{$_SERVER['HTTP_HOST']}{$_SERVER['REQUEST_URI']}") ?>">
-    <link rel="canonical" href="https://<?= htmlspecialchars(PLATFORMS[$immediateResult['platform']][0] ?? '') ?>/<?= htmlspecialchars($immediateResult['relativeurl']) ?>">
+    <meta name="description" content="<?= htmlspecialchars($immediateResult['description'] ?? 'Content Proxy for viewing media and text from various platforms.') ?>" />
+    <meta property="og:title" content="<?= htmlspecialchars($immediateResult['title'] ?? 'Content Proxy') ?>" />
+    <meta property="og:description" content="<?= htmlspecialchars($immediateResult['description'] ?? 'View content from supported platforms.') ?>" />
+    <meta property="og:type" content="<?= htmlspecialchars($immediateResult['type'] ?? '') ?>" />
+    <meta property="og:image" content="<?= htmlspecialchars($immediateResult['image'] ?? '') ?>" />
+    <meta property="og:video" content="<?= htmlspecialchars($immediateResult['video'] ?? '') ?>" />
+    <meta property="og:url" content="<?= htmlspecialchars("https://{$_SERVER['HTTP_HOST']}{$_SERVER['REQUEST_URI']}") ?>" />
+    <link rel="canonical" href="<?= htmlspecialchars(makeCanonicalUrl($immediateResult)) ?>" />
 <!--    <style>
         body {
             font-family: Arial, sans-serif;
@@ -437,9 +444,17 @@ if (isset($_GET['search']) && ($search = $_GET['search']) !== '') {
     <div class="container">
         <h1><a href="<?php echo $_SERVER['SCRIPT_NAME']; ?>"><?php echo APPNAME; ?></a></h1>
         <form class="search-bar" method="get" action="<?php echo htmlspecialchars($_SERVER['SCRIPT_NAME'] . '/') ?>">
-            <input type="text" required="required" name="search" placeholder="Search or Input URL" value="<?= htmlspecialchars($_GET['search'] ?? '') ?>">
+            <input type="text" required="required" name="search" placeholder="Search or Input URL" value="<?= htmlspecialchars($_GET['search'] ?: makeCanonicalUrl($immediateResult) ?: '') ?>">
             <button type="submit">Go 💣️</button>
         </form>
+
+        <?php if (!isset($searchResults)) {
+            echo 'Supported Platforms: <ul>';
+            foreach (PLATFORMS as $platform => $_) {
+                echo "<li>{$platform}</li>";
+            }
+            echo '</ul>';
+        } ?>
 
         <?php if (isset($searchResults)): ?>
             <?php foreach ($searchResults as $item): ?>
