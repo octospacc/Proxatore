@@ -7,8 +7,8 @@ const PLATFORMS = [
 	'reddit' => ['old.reddit.com', 'reddit.com'],
 	'telegram' => ['t.me', 'telegram.me'],
 	'tiktok' => ['tiktok.com', 'vxtiktok.com'],
-	'twitter' => ['twitter.com', 'fxtwitter.com', 'vxtwitter.com'],
-	'x' => ['x.com', 'fixupx.com'],
+	'twitter' => ['fxtwitter.com', 'vxtwitter.com', 'twitter.com'],
+	'x' => ['fixupx.com', 'x.com'],
 	//'wordpress' => ['wordpress.com'],
 ];
 
@@ -143,10 +143,8 @@ if (isset($_GET['search']) && ($search = $_GET['search']) !== '') {
             'author' => $metaTags['og:site_name'] ?? '',
             'description' => $metaTags['og:description'] ?: $metaTags['description'] ?: '',
         ];
-        if (!$immediateResult['video']) {
-            $html = fetchContent(makeEmbedUrl($platform, $relativeUrl))['body'];
-            $vidpos = strpos($html, '.mp4');
-            if ($vidpos) {
+        if (!$immediateResult['video'] && ($html = fetchContent(makeEmbedUrl($platform, $relativeUrl))['body'])) {
+            if ($vidpos = strpos($html, '.mp4')) {
                 //$startpos = 0;//strpos(strrev(substr($html, 0, $vidpos)), '"');
                 $endpos = strpos($html, '"', $vidpos); //strpos(substr($html, $vidpos), '"');
                 $vidstr = substr($html, 0, $endpos);
@@ -155,7 +153,7 @@ if (isset($_GET['search']) && ($search = $_GET['search']) !== '') {
                 $vidstr = substr($html, $startpos, $endpos-$startpos+1);
                 //echo $vidstr;
                 //echo '|' . $vidpos . '|' . $startpos . '|' . $endpos; //substr($html, $startpos, $endpos);
-                $vidstr = json_decode('"' . json_decode('"' . html_entity_decode($vidstr) . '"') . '');
+                $vidstr = json_decode('"' . json_decode('"' . html_entity_decode($vidstr) . '"'));
                 //echo $vidstr;
                 $immediateResult['video'] = $vidstr;
                 //echo '"' . $vidstr . '"';
