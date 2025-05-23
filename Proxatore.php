@@ -3,17 +3,50 @@ const APPNAME = 'Proxatore';
 
 const PLATFORMS = [
 	'facebook' => ['facebook.com', 'm.facebook.com'],
-	'instagram' => ['instagram.com', 'ddinstagram.com', 'd.ddinstagram.com'],
+	'instagram' => ['instagram.com'],
 	'reddit' => ['old.reddit.com', 'reddit.com'],
 	'telegram' => ['t.me', 'telegram.me'],
-	'tiktok' => ['tiktok.com', 'vxtiktok.com'],
-	'twitter' => ['fxtwitter.com', 'vxtwitter.com', 'twitter.com'],
-	'x' => ['fixupx.com', 'x.com'],
-	//'wordpress' => ['wordpress.com'],
+	'tiktok' => ['tiktok.com'],
+	'twitter' => ['twitter.com'],
+	'x' => ['x.com'],
+	'xiaohongshu' => ['xiaohongshu.com'],
+	//'youtube' => ['youtu.be', 'youtube.com', 'm.youtube.com'],
 ];
+
+const PLATFORMS_ALIASES = [
+	'x' => 'twitter',
+];
+
+const PLATFORMS_PROXIES = [
+	'instagram' => ['ddinstagram.com', 'd.ddinstagram.com'],
+	'tiktok' => ['vxtiktok.com'],
+	'twitter' => ['fxtwitter.com', 'vxtwitter.com'],
+	'x' => ['fixupx.com'],
+];
+
+const PLATFORMS_REDIRECTS = [
+	'vm.tiktok.com' => 'tiktok',
+];
+
+const PLATFORMS_HACKS = ['twitter', 'x'];
+
+const PLATFORMS_ORDERED = ['telegram'];
+
+const PLATFORMS_TRACKING = ['facebook', 'xiaohongshu'];
+
+const PLATFORMS_VIDEO = ['instagram'];
 
 const EMBEDS = [
 	'reddit' => ['embed.reddit.com'],
+];
+
+const EMBEDS_PREFIXES_FULL = [
+	'facebook' => 'www.facebook.com/plugins/post.php?href=https://www.facebook.com/',
+];
+
+const EMBEDS_PREFIXES_SIMPLE = [
+	'tiktok' => 'www.tiktok.com/embed/v3/',
+	'twitter' => 'platform.twitter.com/embed/Tweet.html?id=',
 ];
 
 const EMBEDS_SUFFIXES = [
@@ -27,21 +60,26 @@ function lstrip($str, $sub) {
 	return implode($sub, array_slice(explode($sub, $str), 1));
 }
 
-function fetchContent($url) {
+function urlLast($url) {
+	return end(explode('/', trim(parse_url($url, PHP_URL_PATH), '/')));
+}
+
+function fetchContent($url, $redirects=-1) {
     $ch = curl_init();
     //$useragent = 'Mozilla/5.0 (X11; Linux x86_64; rv:129.0) Gecko/20100101 Firefox/129.0';
     $useragent = 'curl/' . curl_version()['version'];
     curl_setopt($ch, CURLOPT_URL, $url);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+    curl_setopt($ch, CURLOPT_MAXREDIRS, $redirects);
     curl_setopt($ch, CURLOPT_USERAGENT, $useragent);
     $body = curl_exec($ch);
-    $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    http_response_code();
+    http_response_code($code = curl_getinfo($ch, CURLINFO_HTTP_CODE));
     curl_close($ch);
     return [
         'body' => $body,
         'code' => $code,
+        'url' => curl_getinfo($ch, CURLINFO_REDIRECT_URL),
     ];
 }
 
@@ -53,7 +91,25 @@ function makeCanonicalUrl($item) {
 }
 
 function makeEmbedUrl($platform, $relativeUrl) {
-	return 'https://' . (EMBEDS[$platform][0] ?: PLATFORMS[$platform][0] ?: '') . '/' . $relativeUrl . (EMBEDS_SUFFIXES[$platform] ?? '');
+	if (isset(EMBEDS_PREFIXES_SIMPLE[$platform])) {
+		return 'https://' . EMBEDS_PREFIXES_SIMPLE[$platform] . urlLast($relativeUrl);
+	} else if (isset(EMBEDS_PREFIXES_FULL[$platform])) {
+		return 'https://' . EMBEDS_PREFIXES_FULL[$platform] . $relativeUrl;
+	} else {
+		return 'https://' . (EMBEDS[$platform][0] ?: PLATFORMS[$platform][0] ?: PLATFORMS_PROXIES[$platform][0] ?: '') . '/' . trim($relativeUrl, '/') . (EMBEDS_SUFFIXES[$platform] ?? '');
+	}
+//	switch ($platform) {
+//		case 'tiktok':
+//			return 'https://www.tiktok.com/embed/v3/' . urlLast($relativeUrl);
+//		case 'twitter':
+//			return 'https://platform.twitter.com/embed/Tweet.html?id=' . urlLast($relativeUrl);
+//		default:
+//			return 'https://' . (EMBEDS[$platform][0] ?: PLATFORMS_PROXIES[$platform][0] ?: PLATFORMS[$platform][0] ?: '') . '/' . $relativeUrl . (EMBEDS_SUFFIXES[$platform] ?? '');
+//	}
+}
+
+function makeScrapeUrl($platform, $relativeUrl) {
+	return 'https://' . ((in_array($platform, PLATFORMS_HACKS) ? (PLATFORMS_PROXIES[$platform][0] ?: PLATFORMS[$platform][0]) : PLATFORMS[$platform][0]) ?: $platform) . '/' . $relativeUrl;
 }
 
 function parseMetaTags($doc) {
@@ -98,7 +154,7 @@ function searchHistory($keyword) {
     return $results;
 }
 
-$path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+$path = $_SERVER['REQUEST_URI'];//parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 $immediateResult = null;
 
 if (isset($_GET['search']) && ($search = $_GET['search']) !== '') {
@@ -112,17 +168,19 @@ if (isset($_GET['search']) && ($search = $_GET['search']) !== '') {
     array_shift($segments);
 
     $platform = null;
-    $upstreamUrl = null;
-
     $upstream = $segments[0] ?? null;
     $relativeUrl = implode('/', array_slice($segments, 1));
 
     if (isset(PLATFORMS[$upstream])) {
+        if (isset(PLATFORMS_ALIASES[$upstream])) {
+            header('Location: ' . $_SERVER['SCRIPT_NAME'] . '/' . PLATFORMS_ALIASES[$upstream] . '/' . $relativeUrl);
+            die();
+        }
         $platform = $upstream;
         $domain = PLATFORMS[$upstream][0];
-        $upstreamUrl = "https://$domain";
+        //$upstreamUrl = "https://$domain";
     } else {
-        foreach ([PLATFORMS, EMBEDS] as $array) {
+        foreach ([PLATFORMS_PROXIES, PLATFORMS, EMBEDS] as $array) {
             foreach ($array as $platform => $domains) {
                 if (in_array($upstream, $domains) || in_array(lstrip($upstream, 'www.'), $domains)) {
                     header('Location: ' . $_SERVER['SCRIPT_NAME'] . '/' . $platform . '/' . $relativeUrl);
@@ -131,10 +189,25 @@ if (isset($_GET['search']) && ($search = $_GET['search']) !== '') {
                     //break;
                 }
             }
+            unset($platform);
         }
     }
 
-    if ($relativeUrl && $upstreamUrl && ($content = fetchContent("$upstreamUrl/$relativeUrl"))['body']) {
+    //if (!$platform && $upstream === 'vm.tiktok.com') {
+    //    $platform = $upstream;//'tiktok';
+    //    //'https://vm.tiktok.com/ZNeKpMrUB/';
+    //}
+    if (!$platform && isset(PLATFORMS_REDIRECTS[$upstream])) {
+        $relativeUrl = trim(parse_url(fetchContent("$upstream/$relativeUrl", 1)['url'], PHP_URL_PATH), '/');
+        $platform = PLATFORMS_REDIRECTS[$upstream];
+        header('Location: ' . $_SERVER['SCRIPT_NAME'] . '/' . $platform . '/' . $relativeUrl);
+        die();
+    }
+
+    if ($relativeUrl && /*$upstreamUrl*/ $platform && ($content = fetchContent(makeScrapeUrl($platform, $relativeUrl)))['body']) {
+        if (!in_array($platform, PLATFORMS_TRACKING)) {
+            $relativeUrl = parse_url($relativeUrl, PHP_URL_PATH);
+        }
         $doc = new DOMDocument();
         $doc->loadHTML($content['body']);
         $metaTags = parseMetaTags($doc);
@@ -146,12 +219,14 @@ if (isset($_GET['search']) && ($search = $_GET['search']) !== '') {
             'type' => $metaTags['og:type'] ?? '',
             'image' => $metaTags['og:image'] ?? '',
             'video' => $metaTags['og:video'] ?? '',
-            'title' => $metaTags['og:title'] ?? '',
-            'author' => $metaTags['og:site_name'] ?? '',
+            'title' => $metaTags['og:title'] ?: $metaTags['og:title'] ?: '',
+            //'author' => $metaTags['og:site_name'] ?? '',
             'description' => $metaTags['og:description'] ?: $metaTags['description'] ?: '',
+            'images' => [],
         ];
-        if (!$immediateResult['video'] && ($html = fetchContent(makeEmbedUrl($platform, $relativeUrl))['body'])) {
-            if ($vidpos = strpos($html, '.mp4')) {
+        if ((in_array($platform, PLATFORMS_VIDEO) && !$immediateResult['video']) || !$immediateResult['image']) {
+            $html = fetchContent(makeEmbedUrl($platform, $relativeUrl))['body'];
+            if (!$immediateResult['video'] && ($vidpos = strpos($html, '.mp4'))) {
                 //$startpos = 0;//strpos(strrev(substr($html, 0, $vidpos)), '"');
                 $endpos = strpos($html, '"', $vidpos); //strpos(substr($html, $vidpos), '"');
                 $vidstr = substr($html, 0, $endpos);
@@ -165,8 +240,16 @@ if (isset($_GET['search']) && ($search = $_GET['search']) !== '') {
                 $immediateResult['video'] = $vidstr;
                 //echo '"' . $vidstr . '"';
             }
+            if (!$immediateResult['image']) {
+                $doc->loadHTML($html);
+                foreach ($doc->getElementsByTagName('img') as $img) {
+                    array_push($immediateResult['images'], $img->getAttribute('src'));
+                }
+                if (sizeof($immediateResult['images'])) {
+                    //$immediateResult['image'] = $imgs[0];
+                }
+            }
         }
-        $searchResults = [$immediateResult];
         //if ($immediateResult['title'] || $immediateResult['description']) {
         //    saveHistory($immediateResult);
         //} else 
@@ -176,6 +259,8 @@ if (isset($_GET['search']) && ($search = $_GET['search']) !== '') {
         } else {
             saveHistory($immediateResult);
         }
+        $immediateResult['description'] = preg_replace('/(http|https|ftp|ftps)\:\/\/[a-zA-Z0-9\-\.]+\.[a-zA-Z]{2,3}(\/\S*)?/', '<a href="$0" target="_blank" rel="noopener nofollow" title="$0">$0</a>', $immediateResult['description']);
+        $searchResults = [$immediateResult];
     } else {
         http_response_code(404);
     }
@@ -184,81 +269,26 @@ if (isset($_GET['search']) && ($search = $_GET['search']) !== '') {
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title><?php echo APPNAME; ?></title>
-    <meta name="description" content="<?= htmlspecialchars($immediateResult['description'] ?? 'Content Proxy for viewing media and text from various platforms.') ?>" />
-    <meta property="og:title" content="<?= htmlspecialchars($immediateResult['title'] ?? 'Content Proxy') ?>" />
-    <meta property="og:description" content="<?= htmlspecialchars($immediateResult['description'] ?? 'View content from supported platforms.') ?>" />
-    <meta property="og:type" content="<?= htmlspecialchars($immediateResult['type'] ?? '') ?>" />
-    <meta property="og:image" content="<?= htmlspecialchars($immediateResult['image'] ?? '') ?>" />
-    <meta property="og:video" content="<?= htmlspecialchars($immediateResult['video'] ?? '') ?>" />
-    <meta property="og:url" content="<?= htmlspecialchars("https://{$_SERVER['HTTP_HOST']}{$_SERVER['REQUEST_URI']}") ?>" />
-    <link rel="canonical" href="<?= htmlspecialchars(makeCanonicalUrl($immediateResult)) ?>" />
-<!--    <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 0;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            background-color: #f8f9fa;
-        }
-        .container {
-            max-width: 800px;
-            margin: 20px;
-            padding: 20px;
-            background: white;
-            border-radius: 10px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        }
-        h1 {
-            text-align: center;
-            margin-bottom: 20px;
-        }
-        .history-item {
-            border-bottom: 1px solid #ddd;
-            padding: 1em 0;
-        }
-        .history-item:last-child {
-            border-bottom: none;
-        }
-        .history-item img {
-            /* max-width: 100px; */
-            margin-right: 20px;
-        }
-        .history-item div {
-            display: inline-block;
-            vertical-align: top;
-        }
-        .history-item p {
-            
-        }
-        .search-bar {
-            margin-bottom: 20px;
-        }
-        .search-bar input {
-            width: calc(100% - 100px);
-            padding: 10px;
-            margin-right: 10px;
-            border: 1px solid #ccc;
-            border-radius: 5px;
-        }
-        .search-bar button {
-            padding: 10px;
-            background-color: #007BFF;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-        }
-    </style> -->
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title><?= APPNAME ?></title>
+<meta name="description" content="<?= htmlspecialchars($immediateResult['description'] ?? 'Content Proxy for viewing media and text from various platforms.') ?>" />
+<meta property="og:title" content="<?= htmlspecialchars($immediateResult['title'] ?? APPNAME) ?>" />
+<meta property="og:description" content="<?= htmlspecialchars($immediateResult['description'] ?? 'View content from supported platforms.') ?>" />
+<meta property="og:type" content="<?= htmlspecialchars($immediateResult['type'] ?? '') ?>" />
+<meta property="og:image" content="<?= htmlspecialchars($immediateResult['image'] ?? '') ?>" />
+<?php if ($immediateResult['video']): ?>
+<meta property="og:video" content="<?= htmlspecialchars($immediateResult['video']) ?>" />
+<meta property="og:video:secure_url" content="<?= htmlspecialchars($immediateResult['video']) ?>" />
+<meta property="og:video:type" content="video/mp4" />
+<?php endif; ?>
+<meta property="og:site_name" content="<?= APPNAME . ' ' . $immediateResult['platform'] ?>" />
+<meta property="og:url" content="<?= htmlspecialchars(makeCanonicalUrl($immediateResult)) ?>" />
+<link rel="canonical" href="<?= htmlspecialchars(makeCanonicalUrl($immediateResult)) ?>" />
 <style>
     * {
         box-sizing: border-box;
     }
-
     body {
         font-family: 'Roboto', Arial, sans-serif;
         margin: 0;
@@ -269,13 +299,11 @@ if (isset($_GET['search']) && ($search = $_GET['search']) !== '') {
         background-color: #f0f2f5;
         color: #1c1e21;
     }
-    
     iframe {
         width: 100%;
-        height: 50vh;
+        height: 90vh;
         border: none;
     }
-
     .container {
         max-width: 900px;
         width: 90%;
@@ -286,16 +314,17 @@ if (isset($_GET['search']) && ($search = $_GET['search']) !== '') {
         box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
         overflow: hidden;
     }
-    
     a.button {
         padding: 0.5em;
         border: 1px solid gray;
         border-radius: 8px;
         text-decoration: none;
         margin: 0.5em;
+        display: inline-block;
+    }
+    a.button.block {
         display: block;
     }
-
     h1, h1 a {
         text-align: center;
         margin-bottom: 20px;
@@ -303,7 +332,6 @@ if (isset($_GET['search']) && ($search = $_GET['search']) !== '') {
         color: #1877f2;
         text-decoration: none;
     }
-
     h2 {
         font-size: 1.5rem;
         margin-top: 20px;
@@ -311,7 +339,6 @@ if (isset($_GET['search']) && ($search = $_GET['search']) !== '') {
         border-bottom: 2px solid #1877f2;
         padding-bottom: 5px;
     }
-
     .history-item {
         display: flex;
         align-items: center;
@@ -319,12 +346,10 @@ if (isset($_GET['search']) && ($search = $_GET['search']) !== '') {
         padding: 15px 0;
         transition: background-color 0.3s;
     }
-
     .history-item:hover {
         background-color: #f9f9f9;
     }
-
-    .history-item img {
+    .history-item img, .history-item video {
         /*width: 49%;
         max-width: 49%;*/
         width: 100%;
@@ -335,47 +360,47 @@ if (isset($_GET['search']) && ($search = $_GET['search']) !== '') {
         border-radius: 4px;
         object-fit: cover;
     }
-
     .history-item div {
-        display: flex;
+        /*display: flex;*/
         flex-direction: column;
         justify-content: center;
         max-width: 49%;
+        width: 49%;
         /*padding: 1em;*/
     }
-    
     img, video {
         padding: 1em;
     }
-    
     img[src=""], video[src=""] {
         display: none;
     }
-
+    img + img,
+    video:not(video[src=""]) + img {
+        max-width: 45% !important;
+    }
     .history-item strong {
         font-size: 1.2rem;
         color: #1c1e21;
         margin-bottom: 5px;
         display: -webkit-box;
     }
-    
     .history-item.ellipsize strong {
         -webkit-line-clamp: 5;
         -webkit-box-orient: vertical;
         overflow: hidden;
     }
-
     .history-item small {
         font-size: 0.9rem;
         color: #606770;
     }
-
+    .history-item .title {
+        display: none;
+    }
     .search-bar {
         margin-bottom: 20px;
         display: flex;
         justify-content: center;
     }
-
     .search-bar input {
         flex: 1;
         max-width: 600px;
@@ -385,13 +410,11 @@ if (isset($_GET['search']) && ($search = $_GET['search']) !== '') {
         font-size: 1rem;
         transition: box-shadow 0.3s, border-color 0.3s;
     }
-
     .search-bar input:focus {
         border-color: #1877f2;
         box-shadow: 0 0 5px rgba(24, 119, 242, 0.5);
         outline: none;
     }
-
     .search-bar button {
         margin-left: 10px;
         padding: 10px 20px;
@@ -403,42 +426,38 @@ if (isset($_GET['search']) && ($search = $_GET['search']) !== '') {
         cursor: pointer;
         transition: background-color 0.3s;
     }
-
     .search-bar button:hover {
         background-color: #155dbb;
     }
-
     @media (max-width: 600px) {
         .search-bar input {
             width: 100%;
             margin-bottom: 10px;
         }
-
         .search-bar {
             flex-direction: column;
         }
-
         .search-bar button {
             width: 100%;
             margin: 0;
         }
-
         .history-item {
             flex-direction: column;
             align-items: flex-start;
         }
-
         .history-item img {
             margin-bottom: 10px;
             max-width: 100%;
         }
-        
         .history-item div {
             max-width: 100%;
+            width: 100%;
+        }
+        .history-item .title {
+            display: block;
         }
     }
 </style>
-
 </head>
 <body>
     <div class="container">
@@ -447,45 +466,54 @@ if (isset($_GET['search']) && ($search = $_GET['search']) !== '') {
             <input type="text" required="required" name="search" placeholder="Search or Input URL" value="<?= htmlspecialchars($_GET['search'] ?: makeCanonicalUrl($immediateResult) ?: '') ?>">
             <button type="submit">Go 💣️</button>
         </form>
-
         <?php if (!isset($searchResults)) {
             echo 'Supported Platforms: <ul>';
             foreach (PLATFORMS as $platform => $_) {
-                echo "<li>{$platform}</li>";
+                echo (isset(PLATFORMS_ALIASES[$platform])) ? "/" : "</li><li>";
+                echo "{$platform}";
             }
-            echo '</ul>';
+            echo '</li></ul>';
         } ?>
-
         <?php if (isset($searchResults)): ?>
             <?php foreach ($searchResults as $item): ?>
                 <div class="history-item <?php
                     similar_text($item['title'], $item['description'], $percent);
                     if ($percent > 90) echo 'ellipsize';
                 ?>">
-                    <div>
-                        <img src="<?= htmlspecialchars($item['image'] ?? '') ?>">
+                    <p class="title">
+                        <strong><?= htmlspecialchars($item['title']) ?></strong>
+                        <small><?= htmlspecialchars($item['platform']) ?><!-- | <?= htmlspecialchars($item['datetime']) ?>--></small>
+                    </p>
+                    <div style="text-align: center;">
                         <video src="<?= htmlspecialchars($item['video'] ?? '') ?>" controls="controls"></video>
+                        <img src="<?= htmlspecialchars($item['image'] ?? '') ?>">
+                        <?php foreach ($item['images'] as $image): ?>
+                            <img src="<?= htmlspecialchars($image ?? '') ?>">
+                        <?php endforeach; ?>
                     </div>
                     <div>
                         <p>
                             <strong><?= htmlspecialchars($item['title']) ?></strong>
                             <small><?= htmlspecialchars($item['platform']) ?><!-- | <?= htmlspecialchars($item['datetime']) ?>--></small>
                         </p>
-                        <p style="white-space: preserve-breaks; border-left: 2px solid black; padding: 1em; word-break: break-word;"><?= htmlspecialchars($item['description']) ?></p>
+                        <p style="white-space: preserve-breaks; border-left: 2px solid black; padding: 1em; word-break: break-word;"><?= /*htmlspecialchars*/($item['description']) ?></p>
                         <p>
-                            <a class="button" href="https://<?= htmlspecialchars(PLATFORMS[$item['platform']][0] ?? '') ?>/<?= htmlspecialchars($item['relativeurl']) ?>" target="_blank">Original on <code><?= htmlspecialchars(PLATFORMS[$item['platform']][0] ?? '') ?></code></a>
-                            <a class="button" href="<?= htmlspecialchars($_SERVER['SCRIPT_NAME'] . '/' . $item['platform'] . '/' . $item['relativeurl']) ?>"><?= APPNAME ?> Permalink</a>
+                            <a class="button block" href="https://<?= htmlspecialchars(PLATFORMS[$item['platform']][0] ?? '') ?>/<?= htmlspecialchars($item['relativeurl']) ?>" target="_blank" rel="noopener nofollow">Original on <code><?= htmlspecialchars(PLATFORMS[$item['platform']][0] ?? '') ?></code></a>
+                            <a class="button block" href="<?= htmlspecialchars($_SERVER['SCRIPT_NAME'] . '/' . $item['platform'] . '/' . $item['relativeurl']) ?>"><?= APPNAME ?> Permalink</a>
                         </p>
                     </div>
                 </div>
             <?php endforeach; ?>
         <?php endif; ?>
-        
         <?php if (isset($immediateResult)): ?>
+            <?php if (in_array($immediateResult['platform'], PLATFORMS_ORDERED)): ?>
+                <div>
+                    <a class="button" href="<?= end(explode('/', $immediateResult['relativeurl']))-1 ?>">⬅️ Previous</a>
+                    <a class="button" style="float:right;" href="<?= end(explode('/', $immediateResult['relativeurl']))+1 ?>">➡️ Next</a>
+                </div>
+            <?php endif; ?>
             <iframe src="<?= htmlspecialchars(makeEmbedUrl($immediateResult['platform'], $immediateResult['relativeurl'])) ?>"></iframe>
         <?php endif; ?>
-
     </div>
 </body>
 </html>
-
