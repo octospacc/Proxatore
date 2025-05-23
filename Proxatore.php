@@ -1,5 +1,31 @@
 <?php
-const APPNAME = '🎭️ Proxatore';
+/*
+ * Proxatore, a content proxy for viewing and embedding media and text from various platforms.
+ * Copyright (C) 2025 OctoSpacc
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * See the GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <https://www.gnu.org/licenses/>. 
+ */
+
+/*********** Configuration ***********/
+
+const APP_NAME = '🎭️ Proxatore';
+const APP_DESCRIPTION = 'a content proxy for viewing and embedding media and text from various platforms.';
+
+// if you make changes to the source code, please modify this to point to your modified version
+const SOURCE_CODE = 'https://hlb0.octt.eu.org/Drive/Misc/Scripts/Proxatore.php';
+
+// cobalt API server URL; set to false or null or '' to avoid using cobalt
 const COBALT_API = 'http://192.168.1.125:9010/';
 
 const OPTIONS_DEFAULTS = [
@@ -8,56 +34,75 @@ const OPTIONS_DEFAULTS = [
     'htmlmedia' => false,
     'relativemedia' => false,
     'mediaproxy' => false,
+    'viewmode' => 'normal',
 ];
 
-const OPTIONS_OVERRIDES = [
-    'bbs.spacc.eu.org' => [
-        'embedfirst' => true,
-    ],
-];
+const GOOGLE_VERIFICATION = 'HjNf-db8xb7lkRNgD3Q8-qeF1lWsbxmCZptRyjLBnrI';
+const BING_VERIFICATION = '45DC0FC265FF4059D48677970BE86150';
+
+/*************************************/
+
+//define('SCRIPT_NAME', $_SERVER['SCRIPT_NAME'] /* '/' */);
+define('SCRIPT_NAME', ($_SERVER['SCRIPT_NAME'] === '/' ? $_SERVER['SCRIPT_NAME'] : "{$_SERVER['SCRIPT_NAME']}/"));
+define('HISTORY_FILE', './Proxatore.history.jsonl');
+
+// const OPTIONS_OVERRIDES = [
+//     'bbs.spacc.eu.org' => [
+//         'embedfirst' => true,
+//     ],
+// ];
 
 const PLATFORMS = [
-	'spaccbbs' => ['bbs.spacc.eu.org'],
+    'spaccbbs' => ['bbs.spacc.eu.org'],
     'bluesky' => ['bsky.app'],
-	'facebook' => ['facebook.com', 'm.facebook.com'],
-	'instagram' => ['instagram.com'],
-	//'juxt' => ['juxt.pretendo.network'],
-	'reddit' => ['old.reddit.com', 'reddit.com'],
-	'spotify' => ['open.spotify.com'],
-	'telegram' => ['t.me', 'telegram.me'],
+    'facebook' => ['facebook.com', 'm.facebook.com'],
+    'instagram' => ['instagram.com'],
+    //'juxt' => ['juxt.pretendo.network'],
+    'reddit' => ['old.reddit.com', 'reddit.com'],
+    'spotify' => ['open.spotify.com'],
+    'telegram' => ['t.me', 'telegram.me'],
     'threads' => ['threads.net', 'threads.com'],
-	'tiktok' => ['tiktok.com'],
-	'twitter' => ['twitter.com'],
-	'x' => ['x.com'],
-	'xiaohongshu' => ['xiaohongshu.com'],
-	'youtube' => ['youtube.com', 'm.youtube.com'],
+    'tiktok' => ['tiktok.com'],
+    'twitter' => ['twitter.com'],
+    'x' => ['x.com'],
+    'xiaohongshu' => ['xiaohongshu.com'],
+    'youtube' => ['youtube.com', 'm.youtube.com'],
 ];
 
 const PLATFORMS_USERSITES = ['altervista.org', 'blogspot.com', 'wordpress.com'];
 
 const PLATFORMS_ALIASES = [
-	'x' => 'twitter',
+    'x' => 'twitter',
 ];
 
 const PLATFORMS_PROXIES = [
     'bluesky' => ['fxbsky.app'],
-	'instagram' => ['ddinstagram.com', 'd.ddinstagram.com', 'kkinstagram.com'],
+    'instagram' => ['ddinstagram.com', 'd.ddinstagram.com', 'kkinstagram.com'],
     'threads' => ['vxthreads.net'],
-	'tiktok' => ['vxtiktok.com'],
-	'twitter' => ['fxtwitter.com', 'vxtwitter.com', 'fixvx.com'],
-	'x' => ['fixupx.com', 'girlcockx.com', 'stupidpenisx.com'],
+    'tiktok' => ['vxtiktok.com'],
+    'twitter' => ['fxtwitter.com', 'vxtwitter.com', 'fixvx.com'],
+    'x' => ['fixupx.com', 'girlcockx.com', 'stupidpenisx.com'],
 ];
 
 const PLATFORMS_REDIRECTS = [
-	'vm.tiktok.com' => 'tiktok',
-	//'youtu.be' => 'youtube',
+    'vm.tiktok.com' => 'tiktok',
+    'youtu.be' => 'youtube',
 ];
 
 const PLATFORMS_API = [
-    'tiktok' => ['https://www.tiktok.com/player/api/v1/items?item_ids=', [
-        'description' => "['items'][0]['desc']",
-        'video' => "['items'][0]['video_info']['url_list'][0]",
-    ]],
+    'spotify' => [
+        'id' => '__NEXT_DATA__',
+        'data' => [
+            'audio' => "['props']['pageProps']['state']['data']['entity']['audioPreview']['url']",
+        ],
+    ],
+    'tiktok' => [
+        'url' => 'https://www.tiktok.com/player/api/v1/items?item_ids=',
+        'data' => [
+            'description' => "['items'][0]['desc']",
+            'video' => "['items'][0]['video_info']['url_list'][0]",    
+        ],
+    ],
 ];
 
 const PLATFORMS_COBALT = ['instagram'];
@@ -79,31 +124,27 @@ const PLATFORMS_PARAMS = [
 ];
 
 const EMBEDS = [
-	'spotify' => ['open.spotify.com/embed/'],
-	'reddit' => ['embed.reddit.com'],
+    'spotify' => ['open.spotify.com/embed/'],
+    'reddit' => ['embed.reddit.com'],
 ];
 
 const EMBEDS_PREFIXES_SIMPLE = [
-	'tiktok' => 'www.tiktok.com/embed/v3/',
-	'twitter' => 'platform.twitter.com/embed/Tweet.html?id=',
+    'tiktok' => 'www.tiktok.com/embed/v3/',
+    'twitter' => 'platform.twitter.com/embed/Tweet.html?id=',
 ];
 
 const EMBEDS_PREFIXES_PARAMS = [
-	'youtube' => 'www.youtube.com/embed/[v]',
+    'youtube' => 'www.youtube.com/embed/[v]',
 ];
 
 const EMBEDS_SUFFIXES = [
-	'instagram' => '/embed/captioned/',
-	'telegram' => '?embed=1&mode=tme',
+    'instagram' => '/embed/captioned/',
+    'telegram' => '?embed=1&mode=tme',
 ];
 
 define('EMBEDS_PREFIXES_FULL', [
-	'facebook' => 'www.facebook.com/plugins/post.php?href=' . urlencode('https://www.facebook.com/'),
+    'facebook' => 'www.facebook.com/plugins/post.php?href=' . urlencode('https://www.facebook.com/'),
 ]);
-
-define('APP_SLUG', explode(' ', APPNAME)[1]);
-define('SCRIPT_NAME', /* $_SERVER['SCRIPT_NAME'] . */ '/');
-define('HISTORY_FILE', './' . APP_SLUG . '.history.jsonl');
 
 function normalizePlatform(string $platform): string {
     if (str_contains($platform, '.')) {
@@ -121,11 +162,11 @@ function platformMapGet(string $platform, array $array): mixed {
 }
 
 function lstrip(string $str, string $sub, int $num): string {
-	return implode($sub, array_slice(explode($sub, $str), $num));
+    return implode($sub, array_slice(explode($sub, $str), $num));
 }
 
 function urlLast(string $url): string {
-	return end(explode('/', trim(parse_url($url, PHP_URL_PATH), '/')));
+    return end(explode('/', trim(parse_url($url, PHP_URL_PATH), '/')));
 }
 
 function parseAbsoluteUrl(string $str) {
@@ -136,14 +177,18 @@ function parseAbsoluteUrl(string $str) {
 }
 
 function redirectTo($url): void {
-    if (!($absolute = parseAbsoluteUrl($url)) && !readProxatoreParam('history') /* && !(str_contains($url, '?proxatore-history=false') || str_contains($url, '&proxatore-history=false')) */) {
+    if (!($absolute = parseAbsoluteUrl($url)) && !readProxatoreBool('history') /* && !(str_contains($url, '?proxatore-history=false') || str_contains($url, '&proxatore-history=false')) */) {
         parse_str(parse_url($url, PHP_URL_QUERY), $params);
         if (!isset($params['proxatore-history'])) {
             $url = $url . (str_contains($url, '?') ? '&' : '?') . 'proxatore-history=false';
         }
     }
-	header('Location: ' . ($absolute ? '' : SCRIPT_NAME) . $url);
-	die();
+    // if ($_SERVER['REQUEST_METHOD'] === 'GET' || $absolute) {
+        header('Location: ' . ($absolute ? '' : SCRIPT_NAME) . $url);
+    // } else if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    //     echo postRequest(SCRIPT_NAME, 'proxatore-url=' . str_replace('?', '&', $url));
+    // }
+    die();
 }
 
 function fetchContent(string $url, int $redirects=-1): array {
@@ -185,7 +230,7 @@ function makeEmbedUrl(string $platform, string $relativeUrl): string {
 	} else if (isset(EMBEDS_PREFIXES_FULL[$platform])) {
 		$url = EMBEDS_PREFIXES_FULL[$platform] . urlencode($relativeUrl);
 	} else {
-		$url = (EMBEDS[$platform][0] ?: PLATFORMS[$platform][0] ?: PLATFORMS_PROXIES[$platform][0] ?: $platform) . '/' . trim($relativeUrl, '/') . (EMBEDS_SUFFIXES[$platform] ?? '');
+		$url = (EMBEDS[$platform][0] ?? PLATFORMS[$platform][0] ?? PLATFORMS_PROXIES[$platform][0] ?? $platform) . '/' . trim($relativeUrl, '/') . (EMBEDS_SUFFIXES[$platform] ?? '');
 	}
     return "https://{$url}";
 //	switch ($platform) {
@@ -237,7 +282,7 @@ function loadHistory(): array {
 	return $history;
 }
 
-function saveHistory($entry): void {
+function saveHistory(array $entry): void {
     if (inPlatformArray($entry['platform'], PLATFORMS_FAKE404)) {
         $history = searchExactHistory($entry['platform'], implode('/', array_slice(explode('/', $entry['relativeurl']), -1)));
         if (sizeof($history)) {
@@ -291,8 +336,10 @@ function searchExactHistory(string $platform, string $relativeUrl): array {
 }
 
 function htmldom(string $body): DOMDocument {
+    libxml_use_internal_errors(true);
     $doc = new DOMDocument();
     $doc->loadHTML(mb_convert_encoding($body, 'HTML-ENTITIES', 'UTF-8'));
+    libxml_clear_errors();
     return $doc;
 }
 
@@ -317,11 +364,12 @@ function makeResultObject(string $platform, string $relativeUrl, array $metaTags
         'locale' => $metaTags['og:locale'] ?? '',
         'type' => $metaTags['og:type'] ?? '',
         'image' => $metaTags['og:image'] ?? '',
-        'video' => $metaTags['og:video'] ?: $metaTags['og:video:url'] ?: '',
+        'video' => $metaTags['og:video'] ?? $metaTags['og:video:url'] ?? '',
         'videotype' => $metaTags['og:video:type'] ?? '',
-        'title' => $metaTags['og:title'] ?: $metaTags['og:title'] ?: '',
+        'audio' => $metaTags['og:audio'] ?? '',
+        'title' => $metaTags['og:title'] ?? $metaTags['og:title'] ?? '',
         //'author' => $metaTags['og:site_name'] ?? '',
-        'description' => $metaTags['og:description'] ?: $metaTags['description'] ?: '',
+        'description' => $metaTags['og:description'] ?? $metaTags['description'] ?? '',
         'images' => [],
     ];
 }
@@ -337,9 +385,18 @@ function makeParamsRelativeUrl(string $platform, string $url): string {
     return rtrim($url, '?&');
 }
 
-function readBoolParam(string $key, $default=null, $array=null) {
+function getQueryArray(): array {
+    // switch ($_SERVER['REQUEST_METHOD']) {
+    //     case 'GET':
+            return $_GET;
+    //     case 'POST':
+    //         return $_POST;
+    // }
+}
+
+function readBoolParam(string $key, bool|null $default=null, array $array=null) {
     if (!$array) {
-        $array = $_GET;
+        $array = getQueryArray();
     }
     $value = $array[$key] ?? null;
     if ($value && $value !== '') {
@@ -349,9 +406,16 @@ function readBoolParam(string $key, $default=null, $array=null) {
     }
 }
 
-function readProxatoreParam(string $key, $array=null) {
+function readProxatoreBool(string $key, array $array=null) {
     return readBoolParam("proxatore-{$key}", OPTIONS_DEFAULTS[$key], $array);
     // TODO handle domain HTTP referer overrides
+}
+
+function readProxatoreParam(string $key, array $array=null) {
+    if (!$array) {
+        $array = getQueryArray();
+    }
+    return ($array["proxatore-{$key}"] ?? OPTIONS_DEFAULTS[$key] ?? null);
 }
 
 function getPageData($platform, $relativeUrl) {
@@ -374,15 +438,19 @@ function getPageData($platform, $relativeUrl) {
     }
 }
 
-function getCobaltVideo(string $url) {
-    $cobaltData = json_decode(file_get_contents(COBALT_API, false, stream_context_create(['http' => [
-        'header' => [
-            'Accept: application/json',
-            'Content-Type: application/json',
-        ],
+function postRequest(string $url, string $body, array $headers=null): string|false {
+    return file_get_contents($url, false, stream_context_create(['http' => [
+        'header' => $headers,
         'method' => 'POST',
-        'content' => json_encode(['url' => $url]),
-    ]])));
+        'content' => $body,
+    ]]));
+}
+
+function getCobaltVideo(string $url) {
+    $cobaltData = json_decode(postRequest(COBALT_API, json_encode(['url' => $url]), [
+        'Accept: application/json',
+        'Content-Type: application/json',
+    ]));
     if ($cobaltData->status === 'redirect' && strpos($cobaltData->url, '.mp4')) {
         return $cobaltData->url;
     }
@@ -393,9 +461,16 @@ function fetchPageMedia(string $url, array &$result): void {
     $relativeUrl = $result['relativeurl'];
     //if ((in_array($platform, PLATFORMS_VIDEO) && !$immediateResult['video']) || !$immediateResult['image']) {
     if ($api = platformMapGet($platform, PLATFORMS_API)) {
-        $data = json_decode(fetchContent($api[0] . urlLast($relativeUrl))['body'], true);
+        $json = null;
+        if (isset($api['url'])) {
+            $json = fetchContent($api['url'] . urlLast($relativeUrl))['body'];
+        } else if (isset($api['id'])) {
+            $doc = htmldom(fetchContent(makeEmbedUrl($platform, $relativeUrl))['body']);
+            $json = $doc->getElementById($api['id'])->textContent;
+        }
+        $data = json_decode($json, true);
         $values = [];
-        foreach ($api[1] as $key => $query) {
+        foreach ($api['data'] as $key => $query) {
             $values[$key] = eval("return \$data{$query};");
         }
         $result = array_merge($result, $values);
@@ -418,8 +493,8 @@ function fetchPageMedia(string $url, array &$result): void {
 }
 
 function getYoutubeStreamUrl(string $relativeUrl): string {
-    if ($video = preg_replace("/[^A-Za-z0-9-_]/", '', escapeshellarg(substr($relativeUrl, -11)))) {
-        return trim(shell_exec("yt-dlp -g '{$video}'"));
+    if ($video = preg_replace("/[^A-Za-z0-9-_]/", '', substr($relativeUrl, -11))) {
+        return trim(shell_exec("yt-dlp -g 'https://youtube.com/watch?v={$video}'"));
     }
 }
 
@@ -447,6 +522,10 @@ function handleApiRequest(array $segments): void {
     die();
 }
 
+function linkifyUrls(string $text): string {
+    return preg_replace('/(http|https|ftp|ftps)\:\/\/[a-zA-Z0-9\-\.]+\.[a-zA-Z]{2,3}(\/\S*)?/', '<a href="$0" target="_blank" rel="noopener nofollow" title="$0">$0</a>', $text);
+}
+
 function iframeHtml($result): void { ?>
 	<?php if (inPlatformArray($result['platform'], PLATFORMS_ORDERED)): ?>
         <div>
@@ -457,10 +536,10 @@ function iframeHtml($result): void { ?>
     <iframe src="<?= htmlspecialchars(makeEmbedUrl($result['platform'], $result['relativeurl'])) ?>"></iframe>
 <?php }
 
-$path = $_SERVER['REQUEST_URI']; //parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+$path = lstrip($_SERVER['REQUEST_URI'], SCRIPT_NAME, 1); //$_SERVER['REQUEST_URI']; //parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 $immediateResult = null;
 
-if (isset($_GET['proxatore-search']) && ($search = $_GET['proxatore-search']) !== '') {
+if (isset(getQueryArray()['proxatore-search']) && ($search = getQueryArray()['proxatore-search']) !== '') {
     if ($url = parseAbsoluteUrl($search)) {
         return redirectTo($url);
     } else {
@@ -474,9 +553,9 @@ if (isset($_GET['proxatore-search']) && ($search = $_GET['proxatore-search']) !=
     }
 
     $segments = explode('/', $path);
-    if (SCRIPT_NAME !== '/') {
-        array_shift($segments);
-    }
+    // if (SCRIPT_NAME !== '/') {
+    //     array_shift($segments);
+    // }
 
     $platform = null;
     $upstream = $segments[0] ?? null;
@@ -498,13 +577,15 @@ if (isset($_GET['proxatore-search']) && ($search = $_GET['proxatore-search']) !=
                     return redirectTo($platform . '/' . $relativeUrl);
                 }
             }
-            unset($platform);
+            //unset($platform);
+            $platform = null;
         }
     }
 
     if (!$platform && isset(PLATFORMS_REDIRECTS[$upstream])) {
-        // TODO: only strip query params for platforms that don't need them
-        $relativeUrl = trim(parse_url(fetchContent("{$upstream}/{$relativeUrl}", 1)['url'], PHP_URL_PATH), '/');
+        // // TODO: only strip query params for platforms that don't need them
+        //$relativeUrl = trim(parse_url(fetchContent("{$upstream}/{$relativeUrl}", 1)['url'], PHP_URL_PATH), '/');
+        $relativeUrl = trim(lstrip(fetchContent("{$upstream}/{$relativeUrl}", 1)['url'], '/', 3), '/');
         $platform = PLATFORMS_REDIRECTS[$upstream];
         return redirectTo("{$platform}/{$relativeUrl}");
     } else if (!$platform) {
@@ -520,8 +601,8 @@ if (isset($_GET['proxatore-search']) && ($search = $_GET['proxatore-search']) !=
     if ($data = getPageData($platform, $relativeUrl)) {
         http_response_code($data['code']);
         $immediateResult = $data['result'];
-        if ($immediateResult['video'] && $immediateResult['videotype'] === 'text/html' && readProxatoreParam('htmlmedia')) {
-            $proxy = ((readProxatoreParam('mediaproxy') || $_GET['proxatore-mediaproxy'] === 'video') ? 'file' : '');
+        if ($immediateResult['video'] && $immediateResult['videotype'] === 'text/html' && readProxatoreBool('htmlmedia')) {
+            $proxy = ((readProxatoreBool('mediaproxy') || getQueryArray()['proxatore-mediaproxy'] === 'video') ? 'file' : '');
             $immediateResult['video'] = SCRIPT_NAME . "__{$proxy}proxy__/{$platform}/{$immediateResult['video']}";
             $immediateResult['videotype'] = 'video/mp4';
         }
@@ -530,16 +611,16 @@ if (isset($_GET['proxatore-search']) && ($search = $_GET['proxatore-search']) !=
         //if ($immediateResult['title'] || $immediateResult['description']) {
         //    saveHistory($immediateResult);
         //} else 
-        if ($content['code'] >= 400) {
+        if ($data['code'] >= 400) {
             $searchResults = searchExactHistory($platform, $immediateResult['relativeurl']);
             if (sizeof($searchResults)) {
                 $immediateResult = $searchResults[0];
             }
-        } else if (readProxatoreParam('history')) {
+        } else if (readProxatoreBool('history')) {
             saveHistory($immediateResult);
         }
-        $immediateResult['description'] = preg_replace('/(http|https|ftp|ftps)\:\/\/[a-zA-Z0-9\-\.]+\.[a-zA-Z]{2,3}(\/\S*)?/', '<a href="$0" target="_blank" rel="noopener nofollow" title="$0">$0</a>', $immediateResult['description']);
-        if (readProxatoreParam('relativemedia')) {
+        $immediateResult['description'] = linkifyUrls($immediateResult['description']);
+        if (readProxatoreBool('relativemedia')) {
             $count = 0;
             foreach (['video', 'image'] as $type) {
                 if ($immediateResult[$type]) {
@@ -549,7 +630,7 @@ if (isset($_GET['proxatore-search']) && ($search = $_GET['proxatore-search']) !=
             }
         }
         $searchResults = [$immediateResult];
-    } else {
+    } else if ($path) {
         http_response_code(404);
     }
 }
@@ -559,22 +640,28 @@ if (isset($_GET['proxatore-search']) && ($search = $_GET['proxatore-search']) !=
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title><?= APPNAME ?></title>
-<meta name="description" content="<?= htmlspecialchars($immediateResult['description'] ?? 'Content Proxy for viewing media and text from various platforms.') ?>" />
-<meta property="og:title" content="<?= htmlspecialchars($immediateResult['title'] ?? APPNAME) ?>" />
-<meta property="og:description" content="<?= htmlspecialchars($immediateResult['description'] ?? 'View content from supported platforms.') ?>" />
+<title><?= APP_NAME ?></title>
+<meta name="description" content="<?= htmlspecialchars($immediateResult['description'] ?? ucfirst(APP_DESCRIPTION)) ?>" />
+<meta property="og:title" content="<?= htmlspecialchars($immediateResult['title'] ?? APP_NAME) ?>" />
+<meta property="og:description" content="<?= htmlspecialchars($immediateResult['description'] ?? ucfirst(APP_DESCRIPTION)) ?>" />
 <!--<meta property="og:locale" content="<?= htmlspecialchars($immediateResult['locale'] ?? '') ?>" />-->
 <meta property="og:type" content="<?= htmlspecialchars($immediateResult['type'] ?? '') ?>" />
 <meta property="og:image" content="<?= htmlspecialchars($immediateResult['image'] ?? '') ?>" />
-<?php if ($immediateResult['video']): ?>
+<?php if (isset($immediateResult['video'])): ?>
 <meta property="og:video" content="<?= htmlspecialchars($immediateResult['video']) ?>" />
 <meta property="og:video:type" content="<?= htmlspecialchars($immediateResult['videotype'] ?: 'video/mp4') ?>" />
 <?php endif; ?>
-<meta property="og:site_name" content="<?= APPNAME . ' ' . $immediateResult['platform'] ?>" />
+<?php if (isset($immediateResult['audio'])): ?>
+<meta property="og:audio" content="<?= htmlspecialchars($immediateResult['audio']) ?>" />
+<meta property="og:audio:type" content="audio/mpeg" />
+<?php endif; ?>
+<meta property="og:site_name" content="<?= APP_NAME . ' ' . ($immediateResult['platform'] ?? '') ?>" />
 <meta property="og:url" content="<?= htmlspecialchars(makeCanonicalUrl($immediateResult)) ?>" />
 <link rel="canonical" href="<?= htmlspecialchars(makeCanonicalUrl($immediateResult)) ?>" />
 <!--<link rel="alternate" type="application/json+oembed" href="" />
 <link rel="alternate" type="application/xml+oembed" href="" />-->
+<meta name="google-site-verification" content="<?= GOOGLE_VERIFICATION ?>" />
+<meta name="msvalidate.01" content="<?= BING_VERIFICATION ?>" />
 <style>
 * {
     box-sizing: border-box;
@@ -596,13 +683,18 @@ iframe {
 }
 .container {
     max-width: 900px;
-    width: 90%;
-    margin: 20px;
     padding: 20px;
     background: white;
     border-radius: 12px;
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
     overflow: hidden;
+}
+body.normal .container {
+    width: 90%;
+    margin: 20px;
+}
+body.embed .container {
+    width: 100%;
 }
 a.button {
     padding: 0.5em;
@@ -638,11 +730,13 @@ h2 {
 .history-item {
     display: flex;
     align-items: center;
-    border-bottom: 1px solid #e6e6e6;
+}
+body.normal .history-item {
     padding: 15px 0;
+    border-bottom: 1px solid #e6e6e6;
     transition: background-color 0.3s;
 }
-.history-item:hover {
+body.normal .history-item:hover {
     background-color: #f9f9f9;
 }
 .history-item img, .history-item video {
@@ -676,6 +770,12 @@ img[src=""], video[src=""] {
 .img + .img,
 video:not(video[src=""]) + .img {
     max-width: 45% !important;
+}
+.description {
+    white-space: preserve-breaks;
+    border-left: 2px solid black;
+    padding: 1em;
+    word-break: break-word;
 }
 .history-item strong {
     font-size: 1.2rem;
@@ -779,81 +879,113 @@ ul.platforms a {
 } */
 </style>
 </head>
-<body>
-    <div class="container">
-        <h1><a href="<?= SCRIPT_NAME ?>"><?= APPNAME; ?></a></h1>
-        <form method="get" action="<?= SCRIPT_NAME ?>">
+<body class="<?= readProxatoreParam('viewmode'); ?>">
+<div class="container">
+    <?php if (readProxatoreParam('viewmode') !== 'embed'): ?>
+        <h1><a href="<?= SCRIPT_NAME ?>"><?= APP_NAME; ?></a></h1>
+        <form method="GET" action="<?= SCRIPT_NAME ?>">
             <div class="search-bar">
-                <input type="text" required="required" name="proxatore-search" placeholder="Search or Input URL" value="<?= htmlspecialchars($_GET['proxatore-search'] ?: makeCanonicalUrl($immediateResult) ?: '') ?>">
+                <input type="text" required="required" name="proxatore-search" placeholder="Search or Input URL" value="<?= htmlspecialchars(getQueryArray()['proxatore-search'] ?? makeCanonicalUrl($immediateResult) ?: '') ?>">
                 <button type="submit">Go 💣️</button>
             </div>
             <details style="margin-bottom: 20px;">
                 <summary>Options</summary>
                 <ul>
-                    <li><label><input type="checkbox" name="proxatore-history" value="false" <?php if ($_GET['proxatore-history'] === 'false') echo 'checked="true"' ?> /> Incognito Mode (don't save query to global cache/history)</label></li>
+                    <li><label><input type="checkbox" name="proxatore-history" value="false" <?php if (!readProxatoreBool('history')) echo 'checked="checked"' ?> /> Incognito Mode (don't save query to global cache/history)</label></li>
                 </ul>
             </details>
         </form>
-        <?php if (!isset($searchResults)) {
-            $platforms = '';
-            $searchPrefix = (SCRIPT_NAME . '?proxatore-search=');
-            echo '<p>Supported Platforms:</p><ul class="platforms">';
-            foreach (array_keys(PLATFORMS) as $platform) {
-                //echo ((isset(PLATFORMS_ALIASES[$platform])) ? "/" : "</li><li>") . $platform;
-                $platforms .= ((isset(PLATFORMS_ALIASES[$platform])) ? '/' : "</a></li><li><a href='{$searchPrefix}\"platform\":\"{$platform}\"'>") . $platform;
-            }
-            foreach (PLATFORMS_USERSITES as $platform) {
-                $platforms .= "</a></li><li><a href='{$searchPrefix}.{$platform}\",\"relativeurl\"'>{$platform}";
-            }
-            echo substr($platforms, strlen('</a></li>')) . '</a></li></ul>';
-            // echo '<details><summary>Query API</summary><ul>
-            //     <li>/?<code>proxatore-search=</code>{search term} — Make a full-text search or load a given URL</li>
-            //     <li>...?<code>proxatore-history=</code>{true,false} — Specify if a given query must be stored in the global search history (default: true)</li>
-            // </ul></details>';
-            echo '<p>Made with 🕸️ and 🧨 by <a href="https://hub.octt.eu.org">OctoSpacc</a>.
-                <small>Source Code: <a href="https://hlb0.octt.eu.org/Drive/Misc/Scripts/Proxatore.php">Proxatore.php</a>.</small>
-            </p>';
-        } ?>
-		<?php if (isset($immediateResult) && readProxatoreParam('embedfirst')) iframeHtml($immediateResult); ?>
-        <?php if (isset($searchResults)): ?>
-            <?php if (!isset($immediateResult)): ?>
-                <h3>Search results:</h3>
-                <?php if (!sizeof($searchResults)): ?>
-                    <p>Nothing was found.</p>
-                <?php endif; ?>
+    <?php endif; ?>
+    <?php if (!isset($searchResults)) {
+        $platforms = '';
+        $searchPrefix = (SCRIPT_NAME . '?proxatore-search=');
+        echo '<p>Supported Platforms:</p><ul class="platforms">';
+        foreach (array_keys(PLATFORMS) as $platform) {
+            //echo ((isset(PLATFORMS_ALIASES[$platform])) ? "/" : "</li><li>") . $platform;
+            $platforms .= ((isset(PLATFORMS_ALIASES[$platform])) ? '/' : "</a></li><li><a href='{$searchPrefix}\"platform\":\"{$platform}\"'>") . $platform;
+        }
+        foreach (PLATFORMS_USERSITES as $platform) {
+            $platforms .= "</a></li><li><a href='{$searchPrefix}.{$platform}\",\"relativeurl\"'>{$platform}";
+        }
+        echo substr($platforms, strlen('</a></li>')) . '</a></li></ul>';
+        // echo '<details><summary>Query string API</summary><ul>
+        //     <li>/?<code>proxatore-search=</code>{search term} — Make a full-text search or load a given URL</li>
+        //     <li>...?<code>proxatore-history=</code>{true,false} — Specify if a given query must be stored in the global search history (default: true)</li>
+        // </ul></details>';
+        echo '<details><summary>Help & Info</summary>
+            <h3>What is this?</h3><p>
+                '.APP_NAME.' is '.APP_DESCRIPTION.'
+                <br />It allows you to bypass ratelimits and georestrictions when accessing contents from many specific Internet platforms,
+                and to view them with a clean and streamlined interface, that works well on both modern systems and old browsers or slow connections.
+                <br />Additionally, it allows you to share links between social media platforms, ensuring link previews, which are often blocked by competitors, always display correctly.
+            </p>
+            <h3>How to self-host?</h3><p>
+                This software is free and open-source, and you can host it on your own server, for either private or public use.
+            </p>
+            <h4>Base requirements</h4><dl>
+                <dt>A web server with PHP</dt>
+                    <dd>(Currently only tested on nginx with PHP 8.2 and IIS with PHP 8.3, as of May 2025.)</dd>
+                <dt><code>curl</code> and <code>mbstring</code> PHP extensions</dt>
+                    <dd>The program requires these PHP extensions to be installed and enabled on the server to work.</dd>
+            </dl>
+            <h4>Optional requirements</h4><dl>
+                <dt>A dedicated domain name</dt>
+                    <dd>To host the program properly, instead of in a subpath.</dd>
+                <dt><a href="https://github.com/yt-dlp/yt-dlp" target="_blank">yt-dlp</a> on your server</dt>
+                    <dd>To stream YouTube videos in MP4 format.</dd>
+                <dt>A <a href="https://github.com/imputnet/cobalt">cobalt</a> API server</dt>
+                    <dd>To have a fallback for access to media files for most platforms.</dd>
+            </dl>
+        </details>';
+        echo '<p>Made with 🕸️ and 🧨 by <a href="https://hub.octt.eu.org">OctoSpacc</a>.
+            <br /><small>Licensed under <a href="https://www.gnu.org/licenses/agpl-3.0.html" target="_blank">AGPLv3</a>. Source Code: <a href="' . SOURCE_CODE . '">Proxatore.php</a>.</small>
+        </p>';
+    } ?>
+    <?php if (isset($immediateResult) && readProxatoreBool('embedfirst') && readProxatoreParam('viewmode') !== 'embed') iframeHtml($immediateResult); ?>
+    <?php if (isset($searchResults)): ?>
+        <?php if (!isset($immediateResult)): ?>
+            <h3>Search results:</h3>
+            <?php if (!sizeof($searchResults)): ?>
+                <p>Nothing was found.</p>
             <?php endif; ?>
-            <?php foreach ($searchResults as $item): ?>
-                <div class="history-item <?php
-                    similar_text($item['title'], $item['description'], $percent);
-                    if ($percent > 90) echo 'ellipsize';
-                ?>">
-                    <p class="title">
-                        <strong><?= htmlspecialchars($item['title']) ?></strong>
-                        <small><?= htmlspecialchars($item['platform']) ?><!-- <?= htmlspecialchars($item['datetime']) ?> --></small>
-                    </p>
-                    <div style="text-align: center;">
-                        <?php if ($item['video'] /* $item['video'] && $item['videotype'] !== 'text/html' */): ?>
-                            <video src="<?= htmlspecialchars($item['platform'] === 'youtube' ? (SCRIPT_NAME . '__proxy__/youtube/' . $immediateResult['video']) : ($item['video'] ?? '')) ?>" controls="controls"></video>
-                        <?php endif; ?>
-                        <?php foreach (array_merge([$item['image']], $item['images']) as $image): ?>
-                            <a class="img" href="<?= htmlspecialchars($image ?? '') ?>" target="_blank" rel="noopener nofollow"><img src="<?= htmlspecialchars($image ?? '') ?>" onerror="this.hidden=true" /></a>
-                        <?php endforeach; ?>
-                    </div>
-                    <div>
-                        <p>
-                            <strong><?= htmlspecialchars($item['title']) ?></strong>
-                            <small><?= htmlspecialchars($item['platform']) ?><!-- <?= htmlspecialchars($item['datetime']) ?> --></small>
-                        </p>
-                        <p style="white-space: preserve-breaks; border-left: 2px solid black; padding: 1em; word-break: break-word;"><?= /*htmlspecialchars*/($item['description']) ?></p>
-                        <p>
-                            <a class="button block" href="<?= htmlspecialchars(makeCanonicalUrl($item)) ?>" target="_blank" rel="noopener nofollow">Original on <code><?= htmlspecialchars(PLATFORMS[$item['platform']][0] ?: $item['platform']) ?>/<?= htmlspecialchars($item['relativeurl']) ?></code></a>
-                            <a class="button block" href="<?= htmlspecialchars(SCRIPT_NAME . $item['platform'] . '/' . $item['relativeurl']) ?>"><?= APPNAME ?> Permalink</a>
-                        </p>
-                    </div>
-                </div>
-            <?php endforeach; ?>
         <?php endif; ?>
-        <?php if (isset($immediateResult) && !readProxatoreParam('embedfirst')) iframeHtml($immediateResult); ?>
-    </div>
+        <?php foreach ($searchResults as $item): ?>
+            <div class="history-item <?php
+                similar_text($item['title'], $item['description'], $percent);
+                if ($percent > 90) echo 'ellipsize';
+            ?>">
+                <p class="title">
+                    <strong><?= htmlspecialchars($item['title']) ?></strong>
+                    <small><?= htmlspecialchars($item['platform']) ?><!-- <?= htmlspecialchars($item['datetime'] ?? '') ?> --></small>
+                </p>
+                <div style="text-align: center;">
+                    <?php if ($item['video'] /* $item['video'] && $item['videotype'] !== 'text/html' */): ?>
+                        <video src="<?= htmlspecialchars($item['platform'] === 'youtube' ? (SCRIPT_NAME . '__proxy__/youtube/' . $immediateResult['video']) : ($item['video'] ?? '')) ?>" controls="controls"></video>
+                    <?php endif; ?>
+                    <?php if ($item['audio']): ?>
+                        <audio src="<?= htmlspecialchars($item['audio']) ?>" controls="controls"></audio>
+                    <?php endif; ?>
+                    <?php foreach (array_merge([$item['image']], $item['images']) as $image): ?>
+                        <a class="img" href="<?= htmlspecialchars($image ?? '') ?>" target="_blank" rel="noopener nofollow"><img src="<?= htmlspecialchars($image ?? '') ?>" onerror="this.hidden=true" /></a>
+                    <?php endforeach; ?>
+                </div>
+                <div>
+                    <p>
+                        <strong><?= htmlspecialchars($item['title']) ?></strong>
+                        <small><?= htmlspecialchars($item['platform']) ?><!-- <?= htmlspecialchars($item['datetime'] ?? '') ?> --></small>
+                    </p>
+                    <?php if ($item['description']): ?><p class="description"><?= /*htmlspecialchars*/($item['description']) ?></p><?php endif; ?>
+                    <p>
+                        <a class="button block" href="<?= htmlspecialchars(makeCanonicalUrl($item)) ?>" target="_blank" rel="noopener nofollow">Original on <code><?= htmlspecialchars(PLATFORMS[$item['platform']][0] ?: $item['platform']) ?>/<?= htmlspecialchars($item['relativeurl']) ?></code></a>
+                        <a class="button block" href="<?= htmlspecialchars(SCRIPT_NAME . $item['platform'] . '/' . $item['relativeurl']) ?>" <?php if (readProxatoreParam('viewmode') === 'embed') echo 'target="_blank"'; ?> >
+                            <?= readProxatoreParam('viewmode') === 'embed' ? ('Powered by ' . APP_NAME) : (APP_NAME . ' Permalink') ?>
+                        </a>
+                    </p>
+                </div>
+            </div>
+        <?php endforeach; ?>
+    <?php endif; ?>
+    <?php if (isset($immediateResult) && !readProxatoreBool('embedfirst') && readProxatoreParam('viewmode') !== 'embed') iframeHtml($immediateResult); ?>
+</div>
 </body>
 </html>
