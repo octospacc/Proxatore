@@ -54,6 +54,7 @@ const EMBEDS_SUFFIXES = [
 	'telegram' => '?embed=1&mode=tme',
 ];
 
+define('SCRIPT_NAME', /* $_SERVER['SCRIPT_NAME'] . */ '/');
 define('HISTORY_FILE', './' . $_SERVER['SCRIPT_NAME'] . '.history.jsonl');
 
 function lstrip($str, $sub) {
@@ -64,8 +65,15 @@ function urlLast($url) {
 	return end(explode('/', trim(parse_url($url, PHP_URL_PATH), '/')));
 }
 
+function parseAbsoluteUrl($str) {
+    $strlow = strtolower($str);
+    if (str_starts_with($strlow, 'http://') || str_starts_with($strlow, 'https://')) {
+        return implode('://', array_slice(explode('://', $str), 1));
+    }
+}
+
 function redirectTo($internalUrl) {
-	header('Location: ' . $_SERVER['SCRIPT_NAME'] . '/' . $internalUrl);
+	header('Location: ' . SCRIPT_NAME . $internalUrl);
 	die();
 }
 
@@ -162,14 +170,25 @@ function searchHistory($keyword) {
 $path = $_SERVER['REQUEST_URI'];//parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 $immediateResult = null;
 
-if (isset($_GET['search']) && ($search = $_GET['search']) !== '') {
-    if (str_starts_with(strtolower($search), 'https://')) {
-        redirectTo(lstrip($search, 'https://'));
+if (isset($_GET['proxatore-search']) && ($search = $_GET['proxatore-search']) !== '') {
+    //if (str_starts_with(strtolower($search), 'https://')) {
+    //    redirectTo(lstrip($search, 'https://'));
+    if ($url = parseAbsoluteUrl($search)) {
+        redirectTo($url);
+    } else {
+        $searchResults = searchHistory($search);
     }
-    $searchResults = searchHistory($search);
 } else {
-    $segments = explode('/', trim($path, '/'));
-    array_shift($segments);
+    $path = trim($path, '/');
+    if ($url = parseAbsoluteUrl($path)) {
+        //$path = $url;
+        redirectTo($url);
+    }
+
+    $segments = explode('/', $path);
+    if (SCRIPT_NAME !== '/') {
+        array_shift($segments);
+    }
 
     $platform = null;
     $upstream = $segments[0] ?? null;
@@ -472,9 +491,9 @@ video:not(video[src=""]) + img {
 </head>
 <body>
     <div class="container">
-        <h1><a href="<?php echo $_SERVER['SCRIPT_NAME']; ?>"><?php echo APPNAME; ?></a></h1>
-        <form class="search-bar" method="get" action="<?php echo htmlspecialchars($_SERVER['SCRIPT_NAME'] . '/') ?>">
-            <input type="text" required="required" name="search" placeholder="Search or Input URL" value="<?= htmlspecialchars($_GET['search'] ?: makeCanonicalUrl($immediateResult) ?: '') ?>">
+        <h1><a href="<?= SCRIPT_NAME ?>"><?php echo APPNAME; ?></a></h1>
+        <form class="search-bar" method="get" action="<?= SCRIPT_NAME ?>">
+            <input type="text" required="required" name="proxatore-search" placeholder="Search or Input URL" value="<?= htmlspecialchars($_GET['proxatore-search'] ?: makeCanonicalUrl($immediateResult) ?: '') ?>">
             <button type="submit">Go 💣️</button>
         </form>
         <?php if (!isset($searchResults)) {
@@ -510,7 +529,7 @@ video:not(video[src=""]) + img {
                         <p style="white-space: preserve-breaks; border-left: 2px solid black; padding: 1em; word-break: break-word;"><?= /*htmlspecialchars*/($item['description']) ?></p>
                         <p>
                             <a class="button block" href="<?= htmlspecialchars(makeCanonicalUrl($item)) ?>" target="_blank" rel="noopener nofollow">Original on <code><?= htmlspecialchars(PLATFORMS[$item['platform']][0] ?: $item['platform']) ?>/<?= htmlspecialchars($item['relativeurl']) ?></code></a>
-                            <a class="button block" href="<?= htmlspecialchars($_SERVER['SCRIPT_NAME'] . '/' . $item['platform'] . '/' . $item['relativeurl']) ?>"><?= APPNAME ?> Permalink</a>
+                            <a class="button block" href="<?= htmlspecialchars(SCRIPT_NAME . $item['platform'] . '/' . $item['relativeurl']) ?>"><?= APPNAME ?> Permalink</a>
                         </p>
                     </div>
                 </div>
