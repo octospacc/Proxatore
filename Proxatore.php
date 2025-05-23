@@ -147,9 +147,18 @@ if (isset($_GET['search']) && ($search = $_GET['search']) !== '') {
             $html = fetchContent(makeEmbedUrl($platform, $relativeUrl))['body'];
             $vidpos = strpos($html, '.mp4');
             if ($vidpos) {
-                $startpos = strpos(substr(strrev($html), 0, $vidpos), '"');
-                $endpos = strpos(substr($html, $vidpos), '"');
-                echo $startpos . '|' . $endpos; //substr($html, $startpos, $endpos);
+                //$startpos = 0;//strpos(strrev(substr($html, 0, $vidpos)), '"');
+                $endpos = strpos($html, '"', $vidpos); //strpos(substr($html, $vidpos), '"');
+                $vidstr = substr($html, 0, $endpos);
+                //echo $vidstr;
+                $startpos = $endpos - strpos(strrev($vidstr), '"');
+                $vidstr = substr($html, $startpos, $endpos-$startpos+1);
+                //echo $vidstr;
+                //echo '|' . $vidpos . '|' . $startpos . '|' . $endpos; //substr($html, $startpos, $endpos);
+                $vidstr = json_decode('"' . json_decode('"' . html_entity_decode($vidstr) . '"') . '');
+                //echo $vidstr;
+                $immediateResult['video'] = $vidstr;
+                //echo '"' . $vidstr . '"';
             }
         }
         $searchResults = [$immediateResult];
@@ -343,13 +352,12 @@ if (isset($_GET['search']) && ($search = $_GET['search']) !== '') {
         color: #1c1e21;
         margin-bottom: 5px;
         display: -webkit-box;
-        <?php
-            similar_text($immediateResult['title'], $immediateResult['description'], $percent);
-            if ($percent > 90): ?>
+    }
+    
+    .history-item.ellipsize strong {
         -webkit-line-clamp: 5;
         -webkit-box-orient: vertical;
         overflow: hidden;
-        <?php endif; ?>
     }
 
     .history-item small {
@@ -437,7 +445,10 @@ if (isset($_GET['search']) && ($search = $_GET['search']) !== '') {
 
         <?php if (isset($searchResults)): ?>
             <?php foreach ($searchResults as $item): ?>
-                <div class="history-item">
+                <div class="history-item <?php
+                    similar_text($item['title'], $item['description'], $percent);
+                    if ($percent > 90) echo 'ellipsize';
+                ?>">
                     <div>
                         <img src="<?= htmlspecialchars($item['image'] ?? '') ?>">
                         <video src="<?= htmlspecialchars($item['video'] ?? '') ?>" controls="controls"></video>
@@ -449,8 +460,8 @@ if (isset($_GET['search']) && ($search = $_GET['search']) !== '') {
                         </p>
                         <p style="white-space: preserve-breaks; border-left: 2px solid black; padding: 1em; word-break: break-word;"><?= htmlspecialchars($item['description']) ?></p>
                         <p>
-                            <a class="button" href="https://<?= htmlspecialchars(PLATFORMS[$item['platform']][0] ?? '') ?>/<?= htmlspecialchars($item['relativeurl']) ?>" target="_blank">Open Original on <code><?= htmlspecialchars(PLATFORMS[$item['platform']][0] ?? '') ?></code></a>
-                            <a class="button" href="<?= htmlspecialchars($_SERVER['SCRIPT_NAME'] . '/' . $item['platform'] . '/' . $item['relativeurl']) ?>">Proxatore Permalink</a>
+                            <a class="button" href="https://<?= htmlspecialchars(PLATFORMS[$item['platform']][0] ?? '') ?>/<?= htmlspecialchars($item['relativeurl']) ?>" target="_blank">Original on <code><?= htmlspecialchars(PLATFORMS[$item['platform']][0] ?? '') ?></code></a>
+                            <a class="button" href="<?= htmlspecialchars($_SERVER['SCRIPT_NAME'] . '/' . $item['platform'] . '/' . $item['relativeurl']) ?>"><?= APPNAME ?> Permalink</a>
                         </p>
                     </div>
                 </div>
