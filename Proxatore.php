@@ -40,6 +40,9 @@ const OPTIONS_DEFAULTS = [
 const GOOGLE_VERIFICATION = 'HjNf-db8xb7lkRNgD3Q8-qeF1lWsbxmCZptRyjLBnrI';
 const BING_VERIFICATION = '45DC0FC265FF4059D48677970BE86150';
 
+define('USER_AGENT', "Proxatore/2025/1 ({$_SERVER['SERVER_NAME']})");
+//define('USER_AGENT', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36 Edg/136.0.0.0');
+
 /*************************************/
 
 //define('SCRIPT_NAME', $_SERVER['SCRIPT_NAME'] /* '/' */);
@@ -58,6 +61,7 @@ const PLATFORMS = [
     'facebook' => ['facebook.com', 'm.facebook.com'],
     'instagram' => ['instagram.com'],
     //'juxt' => ['juxt.pretendo.network'],
+    'raiplay' => ['raiplay.it'],
     'reddit' => ['old.reddit.com', 'reddit.com'],
     'spotify' => ['open.spotify.com'],
     'telegram' => ['t.me', 'telegram.me'],
@@ -114,6 +118,8 @@ const PLATFORMS_HACKS = ['bluesky', 'threads', 'twitter', 'x'];
 const PLATFORMS_ORDERED = ['telegram'];
 
 //const PLATFORMS_VIDEO = ['facebook', 'instagram'];
+
+const PLATFORMS_WEBVIDEO = ['raiplay'];
 
 const PLATFORMS_NOIMAGES = ['altervista.org', 'wordpress.com'];
 
@@ -172,7 +178,7 @@ function urlLast(string $url): string {
 function parseAbsoluteUrl(string $str) {
     $strlow = strtolower($str);
     if (str_starts_with($strlow, 'http://') || str_starts_with($strlow, 'https://')) {
-        return implode('://', array_slice(explode('://', $str), 1));
+        return lstrip($str, '://', 1); //implode('://', array_slice(explode('://', $str), 1));
     }
 }
 
@@ -233,14 +239,6 @@ function makeEmbedUrl(string $platform, string $relativeUrl): string {
 		$url = (EMBEDS[$platform][0] ?? PLATFORMS[$platform][0] ?? PLATFORMS_PROXIES[$platform][0] ?? $platform) . '/' . trim($relativeUrl, '/') . (EMBEDS_SUFFIXES[$platform] ?? '');
 	}
     return "https://{$url}";
-//	switch ($platform) {
-//		case 'tiktok':
-//			return 'https://www.tiktok.com/embed/v3/' . urlLast($relativeUrl);
-//		case 'twitter':
-//			return 'https://platform.twitter.com/embed/Tweet.html?id=' . urlLast($relativeUrl);
-//		default:
-//			return 'https://' . (EMBEDS[$platform][0] ?: PLATFORMS_PROXIES[$platform][0] ?: PLATFORMS[$platform][0] ?: '') . '/' . $relativeUrl . (EMBEDS_SUFFIXES[$platform] ?? '');
-//	}
 }
 
 function makeScrapeUrl(string $platform, string $relativeUrl): string {
@@ -356,7 +354,7 @@ function getAnyVideoUrl(string $txt) {
 }
 
 function makeResultObject(string $platform, string $relativeUrl, array $metaTags): array {
-    return [
+    $data = [
         'platform' => $platform,
         'relativeurl' => $relativeUrl,
         //'datetime' => date('Y-m-d H:i:s'),
@@ -366,12 +364,33 @@ function makeResultObject(string $platform, string $relativeUrl, array $metaTags
         'image' => $metaTags['og:image'] ?? '',
         'video' => $metaTags['og:video'] ?? $metaTags['og:video:url'] ?? '',
         'videotype' => $metaTags['og:video:type'] ?? '',
+        'htmlvideo' => $metaTags['og:video'] ?? $metaTags['og:video:url'] ?? '',
         'audio' => $metaTags['og:audio'] ?? '',
         'title' => $metaTags['og:title'] ?? $metaTags['og:title'] ?? '',
         //'author' => $metaTags['og:site_name'] ?? '',
         'description' => $metaTags['og:description'] ?? $metaTags['description'] ?? '',
         'images' => [],
     ];
+    if (inPlatformArray($platform, PLATFORMS_WEBVIDEO) && !$data['video']) {
+        $data['video'] = makeCanonicalUrl($data);
+        $data['videotype'] = 'text/html';
+    }
+    if ($data['video'] && $data['videotype'] === 'text/html') {
+        $proxy = ((inPlatformArray($platform, PLATFORMS_WEBVIDEO) || readProxatoreBool('mediaproxy') || getQueryArray()['proxatore-mediaproxy'] === 'video') ? 'file' : '');
+        $data['htmlvideo'] = SCRIPT_NAME . "__{$proxy}proxy__/{$platform}/{$data['video']}";
+        if (readProxatoreBool('htmlmedia')) {
+            $data['video'] = $data['htmlvideo'];
+            $data['videotype'] = 'video/mp4';
+        }
+    }
+    // } else if (readProxatoreBool('mediaproxy') || getQueryArray()['proxatore-mediaproxy'] === 'video') {
+    //     $data['htmlvideo'] = SCRIPT_NAME . "__mediaproxy__/{$platform}/{$data['video']}";
+    //     if (readProxatoreBool('htmlmedia')) {
+    //         $data['video'] = $data['htmlvideo'];
+    //         $data['videotype'] = 'video/mp4';
+    //     }
+    // }
+    return $data;
 }
 
 function makeParamsRelativeUrl(string $platform, string $url): string {
@@ -481,7 +500,7 @@ function fetchPageMedia(string $url, array &$result): void {
         }
         $html = fetchContent(makeEmbedUrl($platform, $relativeUrl))['body'];
         if (!$result['video']) {
-            $result['video'] = $cobaltVideo ?? getAnyVideoUrl($html);
+            $result['video'] = $cobaltVideo ?? getAnyVideoUrl($html) ?? '';
         }
         if (!inPlatformArray($platform, PLATFORMS_NOIMAGES) /* !$immediateResult['image'] */) {
             $result['images'] = getHtmlAttributes($html, 'img', 'src');
@@ -492,11 +511,37 @@ function fetchPageMedia(string $url, array &$result): void {
     }
 }
 
-function getYoutubeStreamUrl(string $relativeUrl): string {
-    if ($video = preg_replace("/[^A-Za-z0-9-_]/", '', substr($relativeUrl, -11))) {
-        return trim(shell_exec("yt-dlp -g 'https://youtube.com/watch?v={$video}'"));
+function getWebStreamUrls(string $absoluteUrl, string $options='') {
+    if (($url = parseAbsoluteUrl($absoluteUrl)) && ($url = preg_replace('/[^A-Za-z0-9-_\/\.]/', '', $url))) {
+        return explode("\n", trim(shell_exec("yt-dlp {$options} -g 'https://{$url}'")));
     }
 }
+
+function getYoutubeStreamUrl(string $relativeUrl): string {
+    if ($video = preg_replace('/[^A-Za-z0-9-_]/', '', substr($relativeUrl, -11))) {
+        return getWebStreamUrls("https://youtu.be/{$video}", '-f mp4')[0]; //trim(shell_exec("yt-dlp -g 'https://youtube.com/watch?v={$video}'"));
+    }
+}
+
+function ffmpegStream(string $absoluteUrl): void {
+    if ($urls = getWebStreamUrls($absoluteUrl, '--user-agent "' . USER_AGENT . '"')) {
+        $inputs = '';
+        foreach ($urls as $url) {
+            $inputs .= " -i '{$url}' ";
+        }
+        header('Content-Type: video/mp4');
+        passthru("ffmpeg -user_agent '" . USER_AGENT . "' {$inputs} -c:v copy -f ismv -");
+    }
+    die();
+}
+
+// function ytdlpStream(string $absoluteUrl): void {
+//     if (($url = parseAbsoluteUrl($absoluteUrl)) && ($url = preg_replace('/[^A-Za-z0-9-_\/\.]/', '', $url))) {
+//         header('Content-Type: video/mp4');
+//         passthru("yt-dlp -f mp4 -o - 'https://{$url}' | ffmpeg -i - -c:v copy -f ismv -");
+//     }
+//     die();
+// }
 
 // TODO: redesign the endpoint names, they're kind of a mess
 function handleApiRequest(array $segments): void {
@@ -513,9 +558,15 @@ function handleApiRequest(array $segments): void {
                 header('Location: ' . $url);
             }
         }
-    } else if ($api === 'fileproxy' && $platform === 'youtube') {
-        header('Content-Type: video/mp4');
-        readfile(getYoutubeStreamUrl($relativeUrl));
+    } else if ($api === 'fileproxy') {
+        switch ($platform) {
+            case 'youtube':
+                header('Content-Type: video/mp4');
+                readfile(getYoutubeStreamUrl($relativeUrl));
+                break;
+            default:
+                ffmpegStream('https://' . PLATFORMS[$platform][0] . '/' . lstrip($relativeUrl, '/', 3));
+        }
     } else if ($api === 'embed') {
         header('Location: ' . makeEmbedUrl($platform, $relativeUrl));
     }
@@ -533,7 +584,7 @@ function iframeHtml($result): void { ?>
             <a class="button" style="float:right;" href="<?= end(explode('/', $result['relativeurl']))+1 ?>">➡️ Next</a>
         </div>
     <?php endif; ?>
-    <iframe src="<?= htmlspecialchars(makeEmbedUrl($result['platform'], $result['relativeurl'])) ?>"></iframe>
+    <iframe src="<?= htmlspecialchars(makeEmbedUrl($result['platform'], $result['relativeurl'])) ?>" hidden="hidden" onload="this.hidden=false;"></iframe>
 <?php }
 
 $path = lstrip($_SERVER['REQUEST_URI'], SCRIPT_NAME, 1); //$_SERVER['REQUEST_URI']; //parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
@@ -601,11 +652,11 @@ if (isset(getQueryArray()['proxatore-search']) && ($search = getQueryArray()['pr
     if ($data = getPageData($platform, $relativeUrl)) {
         http_response_code($data['code']);
         $immediateResult = $data['result'];
-        if ($immediateResult['video'] && $immediateResult['videotype'] === 'text/html' && readProxatoreBool('htmlmedia')) {
-            $proxy = ((readProxatoreBool('mediaproxy') || getQueryArray()['proxatore-mediaproxy'] === 'video') ? 'file' : '');
-            $immediateResult['video'] = SCRIPT_NAME . "__{$proxy}proxy__/{$platform}/{$immediateResult['video']}";
-            $immediateResult['videotype'] = 'video/mp4';
-        }
+        //if ($immediateResult['video'] && $immediateResult['videotype'] === 'text/html' && readProxatoreBool('htmlmedia')) {
+        //    $proxy = ((readProxatoreBool('mediaproxy') || getQueryArray()['proxatore-mediaproxy'] === 'video') ? 'file' : '');
+        //    $immediateResult['video'] = SCRIPT_NAME . "__{$proxy}proxy__/{$platform}/{$immediateResult['video']}";
+        //    $immediateResult['videotype'] = 'video/mp4';
+        //}
         fetchPageMedia($data['url'], $immediateResult);
         //}
         //if ($immediateResult['title'] || $immediateResult['description']) {
@@ -647,11 +698,11 @@ if (isset(getQueryArray()['proxatore-search']) && ($search = getQueryArray()['pr
 <!--<meta property="og:locale" content="<?= htmlspecialchars($immediateResult['locale'] ?? '') ?>" />-->
 <meta property="og:type" content="<?= htmlspecialchars($immediateResult['type'] ?? '') ?>" />
 <meta property="og:image" content="<?= htmlspecialchars($immediateResult['image'] ?? '') ?>" />
-<?php if (isset($immediateResult['video'])): ?>
+<?php if ($immediateResult['video']): ?>
 <meta property="og:video" content="<?= htmlspecialchars($immediateResult['video']) ?>" />
 <meta property="og:video:type" content="<?= htmlspecialchars($immediateResult['videotype'] ?: 'video/mp4') ?>" />
 <?php endif; ?>
-<?php if (isset($immediateResult['audio'])): ?>
+<?php if ($immediateResult['audio']): ?>
 <meta property="og:audio" content="<?= htmlspecialchars($immediateResult['audio']) ?>" />
 <meta property="og:audio:type" content="audio/mpeg" />
 <?php endif; ?>
@@ -739,16 +790,18 @@ body.normal .history-item {
 body.normal .history-item:hover {
     background-color: #f9f9f9;
 }
+.history-item img, .history-item video, .history-item .video {
+    width: 100%;
+    max-width: 100%;
+}
 .history-item img, .history-item video {
     /*width: 49%;
     max-width: 49%;*/
-    width: 100%;
-    max-width: 100%;
     /* max-width: 100px;
     max-height: 100px; */
-    margin-right: 15px;
+    /* margin-right: 15px; */
     border-radius: 4px;
-    object-fit: cover;
+    /* object-fit: cover; */
 }
 .history-item div {
     /*display: flex;*/
@@ -761,14 +814,14 @@ body.normal .history-item:hover {
 .img {
     display: inline-block;
 }
-img, video {
+img, .video {
     padding: 1em;
 }
 img[src=""], video[src=""] {
     display: none;
 }
 .img + .img,
-video:not(video[src=""]) + .img {
+.video:not(video[src=""]) + .img {
     max-width: 45% !important;
 }
 .description {
@@ -901,7 +954,6 @@ ul.platforms a {
         $searchPrefix = (SCRIPT_NAME . '?proxatore-search=');
         echo '<p>Supported Platforms:</p><ul class="platforms">';
         foreach (array_keys(PLATFORMS) as $platform) {
-            //echo ((isset(PLATFORMS_ALIASES[$platform])) ? "/" : "</li><li>") . $platform;
             $platforms .= ((isset(PLATFORMS_ALIASES[$platform])) ? '/' : "</a></li><li><a href='{$searchPrefix}\"platform\":\"{$platform}\"'>") . $platform;
         }
         foreach (PLATFORMS_USERSITES as $platform) {
@@ -959,14 +1011,19 @@ ul.platforms a {
                     <small><?= htmlspecialchars($item['platform']) ?><!-- <?= htmlspecialchars($item['datetime'] ?? '') ?> --></small>
                 </p>
                 <div style="text-align: center;">
-                    <?php if ($item['video'] /* $item['video'] && $item['videotype'] !== 'text/html' */): ?>
-                        <video src="<?= htmlspecialchars($item['platform'] === 'youtube' ? (SCRIPT_NAME . '__proxy__/youtube/' . $immediateResult['video']) : ($item['video'] ?? '')) ?>" controls="controls"></video>
+                    <?php if ($item['video'] && (isset($immediateResult) /* || !inPlatformArray($item['platform'], PLATFORMS_WEBVIDEO) */) /* $item['video'] && $item['videotype'] !== 'text/html' */): ?>
+                        <div class="video">
+                            <video src="<?= htmlspecialchars(/* $item['platform'] === 'youtube' ? (SCRIPT_NAME . '__proxy__/youtube/' . $item['video']) : ($item['video'] ?? '') */ $item['htmlvideo'] ?: $item['video']) ?>" controls="controls"></video>
+                            <a class="button block" href="<?= htmlspecialchars($item['htmlvideo'] ?: $item['video']) ?>" download="<?= htmlspecialchars($item['title']); ?>" target="_blank" rel="noopener nofollow">Download video</a>
+                        </div>
                     <?php endif; ?>
                     <?php if ($item['audio']): ?>
                         <audio src="<?= htmlspecialchars($item['audio']) ?>" controls="controls"></audio>
                     <?php endif; ?>
                     <?php foreach (array_merge([$item['image']], $item['images']) as $image): ?>
-                        <a class="img" href="<?= htmlspecialchars($image ?? '') ?>" target="_blank" rel="noopener nofollow"><img src="<?= htmlspecialchars($image ?? '') ?>" onerror="this.hidden=true" /></a>
+                        <a class="img" href="<?= htmlspecialchars($image ?? '') ?>" target="_blank" rel="noopener nofollow">
+                            <img src="<?= htmlspecialchars($image ?? '') ?>" onerror="this.hidden=true" />
+                        </a>
                     <?php endforeach; ?>
                 </div>
                 <div>
@@ -976,7 +1033,9 @@ ul.platforms a {
                     </p>
                     <?php if ($item['description']): ?><p class="description"><?= /*htmlspecialchars*/($item['description']) ?></p><?php endif; ?>
                     <p>
-                        <a class="button block" href="<?= htmlspecialchars(makeCanonicalUrl($item)) ?>" target="_blank" rel="noopener nofollow">Original on <code><?= htmlspecialchars(PLATFORMS[$item['platform']][0] ?: $item['platform']) ?>/<?= htmlspecialchars($item['relativeurl']) ?></code></a>
+                        <a class="button block" href="<?= htmlspecialchars(makeCanonicalUrl($item)) ?>" target="_blank" rel="noopener nofollow">
+                            Original on <code><?= htmlspecialchars(PLATFORMS[$item['platform']][0] ?: $item['platform']) ?>/<?= htmlspecialchars($item['relativeurl']) ?></code>
+                        </a>
                         <a class="button block" href="<?= htmlspecialchars(SCRIPT_NAME . $item['platform'] . '/' . $item['relativeurl']) ?>" <?php if (readProxatoreParam('viewmode') === 'embed') echo 'target="_blank"'; ?> >
                             <?= readProxatoreParam('viewmode') === 'embed' ? ('Powered by ' . APP_NAME) : (APP_NAME . ' Permalink') ?>
                         </a>
