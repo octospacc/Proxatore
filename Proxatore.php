@@ -22,8 +22,8 @@
 const APP_NAME = '🎭️ Proxatore';
 const APP_DESCRIPTION = 'a content proxy for viewing and embedding media and text from various platforms.';
 
-// if you make changes to the source code, please modify this to point to your modified version
-const SOURCE_CODE = 'https://hlb0.octt.eu.org/Drive/Misc/Scripts/Proxatore.php';
+// if you make changes to the source code, please fill this to point to your modified version
+const MODIFIED_SOURCE_CODE = '';
 
 // cobalt API server URL; set to false or null or '' to avoid using cobalt
 const COBALT_API = 'http://192.168.1.125:9010/';
@@ -62,6 +62,7 @@ const PLATFORMS = [
     'facebook' => ['facebook.com', 'm.facebook.com'],
     'instagram' => ['instagram.com'],
     //'juxt' => ['juxt.pretendo.network'],
+    'pinterest' => ['pinterest.com'],
     'raiplay' => ['raiplay.it'],
     'reddit' => ['old.reddit.com', 'reddit.com'],
     'spotify' => ['open.spotify.com'],
@@ -74,10 +75,19 @@ const PLATFORMS = [
     'youtube' => ['youtube.com', 'm.youtube.com'],
 ];
 
+const PLATFORMS_FAKESUBDOMAINS = ['pinterest.com'];
+
 const PLATFORMS_USERSITES = ['altervista.org', 'blogspot.com', 'wordpress.com'];
 
 const PLATFORMS_ALIASES = [
     'x' => 'twitter',
+];
+
+const PLATFORMS_SHORTHANDS = [
+    'fb' => 'facebook',
+    'ig' => 'instagram',
+    'tg' => 'telegram',
+    'yt' => 'youtube',
 ];
 
 const PLATFORMS_PROXIES = [
@@ -114,7 +124,7 @@ const PLATFORMS_COBALT = ['instagram', 'bilibili'];
 
 const PLATFORMS_FAKE404 = ['telegram'];
 
-const PLATFORMS_HACKS = ['bluesky', 'threads', 'twitter', 'x'];
+const PLATFORMS_USEPROXY = ['bluesky', 'twitter', 'x'];
 
 const PLATFORMS_ORDERED = ['telegram'];
 
@@ -158,6 +168,51 @@ function normalizePlatform(string $platform): string {
         $platform = lstrip($platform, '.', -2); //implode('.', array_slice(explode('.', $platform), -2));
     }
     return $platform;
+}
+
+function stripWww(string $domain): string|null {
+    return (str_starts_with($domain, 'www.') ? lstrip($domain, '.', 1) : null);
+}
+
+function isExactPlatformName($platform) {
+    return isset(PLATFORMS[$platform]);
+}
+
+function platformFromAlias(string $alias): string|null {
+    $alias = strtolower($alias);
+    return (PLATFORMS_ALIASES[$alias] ?? PLATFORMS_SHORTHANDS[$alias] ?? null);
+}
+
+function platfromFromDomain(string $upstream): string|null {
+    $upstream = strtolower($upstream);
+    // check supported domains from most to least likely
+    foreach ([PLATFORMS, PLATFORMS_PROXIES, EMBEDS] as $array) {
+        foreach ($array as $platform => $domains) {
+            if (in_array($upstream, $domains) || in_array(stripWww($upstream), $domains)) {
+                return $platform;
+            }
+        }
+    }
+    // check for a known fake subdomain (eg. region-code.example.com)
+    foreach (PLATFORMS_FAKESUBDOMAINS as $domain) {
+        // currently doesn't handle formats like www.region-code.example.com
+        if (lstrip($upstream, '.', 1) === $domain) {
+            return platformFromDomain($domain);
+        }
+    }
+    return null; // domain unsupported
+}
+
+function platformFromUpstream(string $upstream): string|null {
+    // $upstreamLow = strtolower($upstream);
+    // if (isExactPlatformName($upstreamLow)) {
+    //     return $upstreamLow; // upstream is already a supported platform name
+    // } else {
+    //     return platformFromAlias($upstream) ?? platfromFromDomain($upstream);
+    // }
+    return (isExactPlatformName($upstreamLow = strtolower($upstream))
+        ? $upstreamLow
+        : platformFromAlias($upstream) ?? platfromFromDomain($upstream));
 }
 
 function inPlatformArray(string $platform, array $array): bool {
@@ -247,7 +302,7 @@ function makeEmbedUrl(string $platform, string $relativeUrl): string {
 }
 
 function makeScrapeUrl(string $platform, string $relativeUrl): string {
-	return 'https://' . ((inPlatformArray($platform, PLATFORMS_HACKS)
+	return 'https://' . ((inPlatformArray($platform, PLATFORMS_USEPROXY)
         ? (PLATFORMS_PROXIES[$platform][0] ?: PLATFORMS[$platform][0])
         : PLATFORMS[$platform][0]
     ) ?: $platform) . '/' . $relativeUrl;
@@ -550,6 +605,12 @@ function ffmpegStream(string $absoluteUrl): void {
 //     die();
 // }
 
+function streamFile(string $url, string $mime):void {
+    header("Content-Type: {$mime}");
+    readfile($url);
+    die();
+}
+
 // TODO: redesign the endpoint names, they're kind of a mess
 function handleApiRequest(array $segments): void {
 	$api = substr($segments[0], 2, -2);
@@ -568,15 +629,17 @@ function handleApiRequest(array $segments): void {
     } else if ($api === 'fileproxy') {
         switch ($platform) {
             case 'youtube':
-                header('Content-Type: video/mp4');
-                readfile(getYoutubeStreamUrl($relativeUrl));
+                // header('Content-Type: video/mp4');
+                // readfile(getYoutubeStreamUrl($relativeUrl));
+                streamFile(getYoutubeStreamUrl($relativeUrl), 'video/mp4');
                 break;
             default:
                 ffmpegStream('https://' . PLATFORMS[$platform][0] . '/' . lstrip($relativeUrl, '/', 3));
         }
     } else if ($api === 'cobaltproxy') {
-        header('Content-Type: video/mp4');
-        readfile(COBALT_API . $relativeUrl);
+        // header('Content-Type: video/mp4');
+        // readfile(COBALT_API . $relativeUrl);
+        streamFile(COBALT_API . $relativeUrl, 'video/mp4');
     } else if ($api === 'embed') {
         header('Location: ' . makeEmbedUrl($platform, $relativeUrl));
     }
@@ -633,23 +696,34 @@ if ($search = readProxatoreParam('search')) {
 
     if (str_starts_with($upstream, '__') && str_ends_with($upstream, '__')) {
         return handleApiRequest($segments);
-    } else if (isset(PLATFORMS[$upstream])) {
-        if (isset(PLATFORMS_ALIASES[$upstream])) {
-            return redirectTo(PLATFORMS_ALIASES[$upstream] . '/' . $relativeUrl);
-        } else {
-        	$platform = $upstream;
-        	$domain = PLATFORMS[$upstream][0];
-        }
-    } else {
-        foreach ([PLATFORMS_PROXIES, PLATFORMS, EMBEDS] as $array) {
-            foreach ($array as $platform => $domains) {
-                if (in_array($upstream, $domains) || in_array(lstrip($upstream, 'www.', 1), $domains)) {
-                    return redirectTo($platform . '/' . $relativeUrl);
-                }
-            }
-            //unset($platform);
-            $platform = null;
-        }
+//     } else if (isset(PLATFORMS[$upstream])) {
+//         if (PLATFORMS_ALIASES[$upstream] ?? null) {
+//             return redirectTo(PLATFORMS_ALIASES[$upstream] . '/' . $relativeUrl);
+// // TODO change the encompassing if() check to allow for checking shorthands too
+// // TODO allow case-insensitivity
+// //         } else if (PLATFORMS_SHORTHANDS[$upstream] ?? null) {
+// //             return redirectTo(PLATFORMS_SHORTHANDS[$upstream] . '/' . $relativeUrl);
+//         } else {
+//             $platform = $upstream;
+//             $domain = PLATFORMS[$upstream][0];
+//         }
+    } else if (isExactPlatformName($upstream)) {
+        $domain = PLATFORMS[$platform = $upstream][0];
+    } else if ($platform = platformFromUpstream($upstream)) {
+        return redirectTo($platform . '/' . $relativeUrl);
+    // } else {
+    //     // foreach ([PLATFORMS_PROXIES, PLATFORMS, EMBEDS] as $array) {
+    //     //     foreach ($array as $platform => $domains) {
+    //     //         if (in_array($upstream, $domains) || in_array(lstrip($upstream, 'www.', 1), $domains)) {
+    //     //             return redirectTo($platform . '/' . $relativeUrl);
+    //     //         }
+    //     //     }
+    //     //     //unset($platform);
+    //     //     $platform = null;
+    //     // }
+    //     if ($platform = platformFromUpstream($upstream)) {
+    //         return redirectTo($platform . '/' . $relativeUrl);
+    //     }
     }
 
     if (!$platform && isset(PLATFORMS_REDIRECTS[$upstream])) {
@@ -667,15 +741,9 @@ if ($search = readProxatoreParam('search')) {
         }
     }
 
-    //if ($relativeUrl && $platform && ($content = fetchContent(makeScrapeUrl($platform, $relativeUrl)))['body']) {
     if ($data = getPageData($platform, $relativeUrl)) {
         http_response_code($data['code']);
         $immediateResult = $data['result'];
-        //if ($immediateResult['video'] && $immediateResult['videotype'] === 'text/html' && readProxatoreBool('htmlmedia')) {
-        //    $proxy = ((readProxatoreBool('mediaproxy') || getQueryArray()['proxatore-mediaproxy'] === 'video') ? 'file' : '');
-        //    $immediateResult['video'] = SCRIPT_NAME . "__{$proxy}proxy__/{$platform}/{$immediateResult['video']}";
-        //    $immediateResult['videotype'] = 'video/mp4';
-        //}
         fetchPageMedia($data['url'], $immediateResult);
         //}
         //if ($immediateResult['title'] || $immediateResult['description']) {
@@ -716,7 +784,11 @@ if ($search = readProxatoreParam('search')) {
 <meta property="og:description" content="<?= htmlspecialchars($immediateResult['description'] ?? ucfirst(APP_DESCRIPTION)) ?>" />
 <!--<meta property="og:locale" content="<?= htmlspecialchars($immediateResult['locale'] ?? '') ?>" />-->
 <meta property="og:type" content="<?= htmlspecialchars($immediateResult['type'] ?? '') ?>" />
-<meta property="og:image" content="<?= htmlspecialchars($immediateResult['image'] ?? '') ?>" />
+<?php if ($immediateResult['image']): ?>
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:image" content="<?= htmlspecialchars($immediateResult['image']) ?>" />
+<meta property="og:image" content="<?= htmlspecialchars($immediateResult['image']) ?>" />
+<?php endif; ?>
 <?php if ($immediateResult['video']): ?>
 <meta property="og:video" content="<?= htmlspecialchars($immediateResult['video']) ?>" />
 <meta property="og:video:type" content="<?= htmlspecialchars($immediateResult['videotype'] ?: 'video/mp4') ?>" />
@@ -1011,7 +1083,8 @@ ul.platforms a {
             </dl>
         </details>';
         echo '<p>Made with 🕸️ and 🧨 by <a href="https://hub.octt.eu.org">OctoSpacc</a>.
-            <br /><small>Licensed under <a href="https://www.gnu.org/licenses/agpl-3.0.html" target="_blank">AGPLv3</a>. Source Code: <a href="' . SOURCE_CODE . '">Proxatore.php</a>.</small>
+            <br /><small>Licensed under <a href="https://www.gnu.org/licenses/agpl-3.0.html" target="_blank">AGPLv3</a>.
+            Source Code & Info: <a href="https://gitlab.com/octospacc/Proxatore">Official Repository</a>' . (MODIFIED_SOURCE_CODE ? ', <a href="' . MODIFIED_SOURCE_CODE . '">Modified Source Code</a>.</small>' : '.') . '
         </p>';
     } ?>
     <?php if (isset($immediateResult) && readProxatoreBool('embedfirst') && readProxatoreParam('viewmode') !== 'embed') iframeHtml($immediateResult); ?>
