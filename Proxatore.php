@@ -50,7 +50,7 @@ define('USER_AGENT', "Proxatore/2025/1 ({$_SERVER['SERVER_NAME']})");
 /*************************************/
 
 //define('SCRIPT_NAME', $_SERVER['SCRIPT_NAME'] /* '/' */);
-define('SCRIPT_NAME', ($_SERVER['SCRIPT_NAME'] === '/' ? $_SERVER['SCRIPT_NAME'] : "{$_SERVER['SCRIPT_NAME']}/"));
+define('SCRIPT_NAME', ($_SERVER['SCRIPT_NAME'] === '/' ? '/' : "{$_SERVER['SCRIPT_NAME']}/"));
 define('HISTORY_FILE', './Proxatore.history.jsonl');
 
 // const OPTIONS_OVERRIDES = [
@@ -61,6 +61,8 @@ define('HISTORY_FILE', './Proxatore.history.jsonl');
 
 const PLATFORMS = [
     'spaccbbs' => ['bbs.spacc.eu.org'],
+    'github' => ['github.com'],
+    'github-gist' => ['gist.github.com'],
     'bilibili' => ['bilibili.com'],
     'bluesky' => ['bsky.app'],
     'facebook' => ['facebook.com', 'm.facebook.com'],
@@ -105,11 +107,15 @@ const PLATFORMS_PROXIES = [
 ];
 
 const PLATFORMS_REDIRECTS = [
+    'pin.it' => 'pinterest',
     'vm.tiktok.com' => 'tiktok',
     'youtu.be' => 'youtube',
 ];
 
 const PLATFORMS_API = [
+    'github-gist' => [
+        'tag' => 'article',
+    ],
     'spotify' => [
         'id' => '__NEXT_DATA__',
         'data' => [
@@ -148,6 +154,13 @@ const PLATFORMS_PARAMS = [
 const EMBEDS = [
     'spotify' => ['open.spotify.com/embed/'],
     'reddit' => ['embed.reddit.com'],
+];
+
+const EMBEDS_COMPLEX = [
+    'github-gist' => [
+        'prefix' => 'data:text/html;charset=utf-8,<script src="',
+        'suffix' => '.js"></script>',
+    ],
 ];
 
 const EMBEDS_API = [
@@ -309,6 +322,8 @@ function makeEmbedUrl(string $platform, string $relativeUrl, array $meta=null): 
 		$url = EMBEDS_PREFIXES_FULL[$platform] . urlencode($relativeUrl);
     } else if ($api = (EMBEDS_API[$platform] ?? null)) {
         return $meta[$api['meta']];
+    //} else if ($api = EMBEDS_COMPLEX[$platform] ?? null) {
+        //return $api['prefix'] . $relativeUrl . $api['suffix'];
     } else {
 		$url = (EMBEDS[$platform][0] ?? PLATFORMS[$platform][0] ?? PLATFORMS_PROXIES[$platform][0] ?? $platform) . '/' . trim($relativeUrl, '/') . (EMBEDS_SUFFIXES[$platform] ?? '');
 	}
@@ -566,11 +581,16 @@ function fetchPageMedia(array &$item): void {
     $relativeUrl = $item['result']['relativeurl'];
     if ($api = platformMapGet($platform, PLATFORMS_API)) {
         $json = null;
-        if (isset($api['url'])) {
-            $json = fetchContent($api['url'] . urlLast($relativeUrl))['body'];
-        } else if (isset($api['id'])) {
+        if ($apiUrl = $api['url'] ?? null) {
+            $json = fetchContent($apiUrl . urlLast($relativeUrl))['body'];
+        } else {
             $doc = htmldom(fetchContent(makeEmbedUrl($platform, $relativeUrl, $item['meta']))['body']);
-            $json = $doc->getElementById($api['id'])->textContent;
+            if ($id = $api['id'] ?? null) {
+                $json = $doc->getElementById($id)->textContent;
+            } else if ($tag = $api['tag'] ?? null) {
+                $item['result']['description'] = $doc->getElementsByTagName($tag)[0]->textContent;
+                return;
+            }
         }
         $data = json_decode($json, true);
         $values = [];
@@ -1071,23 +1091,6 @@ ul.platforms a {
                 and to view them with a clean and streamlined interface, that works well on both modern systems and old browsers or slow connections.
                 <br />Additionally, it allows you to share links between social media platforms, ensuring link previews, which are often blocked by competitors, always display correctly.
             </p>
-            <h3>How to self-host?</h3><p>
-                This software is free and open-source, and you can host it on your own server, for either private or public use.
-            </p>
-            <h4>Base requirements</h4><dl>
-                <dt>A web server with PHP</dt>
-                    <dd>(Currently only tested on nginx with PHP 8.2 and IIS with PHP 8.3, as of May 2025.)</dd>
-                <dt><code>curl</code> and <code>mbstring</code> PHP extensions</dt>
-                    <dd>The program requires these PHP extensions to be installed and enabled on the server to work.</dd>
-            </dl>
-            <h4>Optional requirements</h4><dl>
-                <dt>A dedicated domain name</dt>
-                    <dd>To host the program properly, instead of in a subpath.</dd>
-                <dt><a href="https://github.com/yt-dlp/yt-dlp" target="_blank">yt-dlp</a> on your server</dt>
-                    <dd>To stream videos from various platforms in MP4 format.</dd>
-                <dt>A <a href="https://github.com/imputnet/cobalt">cobalt</a> API server</dt>
-                    <dd>To have a fallback for access to media files for the most popular platforms.</dd>
-            </dl>
         </details>';
         echo '<p>
             Made with 🕸️ and 🧨 by <a href="https://hub.octt.eu.org">OctoSpacc</a>.
