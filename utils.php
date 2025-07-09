@@ -27,7 +27,7 @@ function platformFromAlias(string $alias): string|null {
     return (PLATFORMS_ALIASES[$alias] ?? PLATFORMS_SHORTHANDS[$alias] ?? null);
 }
 
-function platfromFromDomain(string $upstream): string|null {
+function platformFromDomain(string $upstream): string|null {
     $upstream = strtolower($upstream);
     // check supported domains from most to least likely
     foreach ([PLATFORMS, PLATFORMS_PROXIES, EMBEDS_DOMAINS] as $array) {
@@ -50,7 +50,7 @@ function platfromFromDomain(string $upstream): string|null {
 function platformFromUpstream(string $upstream): string|null {
     return (isExactPlatformName($upstreamLow = strtolower($upstream))
         ? $upstreamLow
-        : platformFromAlias($upstream) ?? platfromFromDomain($upstream));
+        : platformFromAlias($upstream) ?? platformFromDomain($upstream));
 }
 
 function inPlatformArray(string $platform, array $array): bool {
@@ -232,13 +232,13 @@ function makeResultObject(string $platform, string $relativeUrl, array $meta): a
         //'request_time' => time(),
         'locale' => $meta['og:locale'] ?? '',
         'type' => $meta['og:type'] ?? '',
-        'image' => $meta['og:image'] ?? '',
+        'image' => $meta['og:image'] ?? $meta['twitter:image'] ?? '',
         'video' => $meta['og:video'] ?? $meta['og:video:url'] ?? '',
         'videotype' => $meta['og:video:type'] ?? '',
         'htmlvideo' => $meta['og:video'] ?? $meta['og:video:url'] ?? '',
         'audio' => $meta['og:audio'] ?? '',
-        'title' => $meta['og:title'] ?? $meta['og:title'] ?? '',
-        //'author' => $meta['og:site_name'] ?? '',
+        'title' => $meta['og:title'] ?? $meta['og:title'] ?? $meta['twitter:title'] ?? '',
+        //'author' => $meta['twitter:creator'] ?? $meta['og:site_name'] ?? '',
         'description' => $meta['og:description'] ?? $meta['description'] ?? '',
         'images' => [],
     ];
@@ -450,6 +450,9 @@ function handleApiRequest(array $segments): void {
         streamFile(COBALT_API . $relativeUrl, 'video/mp4');
     } else if ($api === 'embed') {
         header('Location: ' . makeEmbedUrl($platform, $relativeUrl));
+    } else if ($api === 'randominstance') {
+        // header('Location: ' . randomProxatoreInstance() . '/' . implode('/', array_slice($segments, 1)));
+        header('Location: ' . randomProxatoreInstance() . ($platform && $relativeUrl ? ('?proxatore-search=' . urlencode(makeCanonicalBareUrl($platform, $relativeUrl))) : ''));
     }
     die();
 }
@@ -459,4 +462,30 @@ function linkifyUrls(string $text): string {
         '/(http|https|ftp|ftps)\:\/\/[a-zA-Z0-9\-\.]+\.[a-zA-Z]{2,3}(\/\S*)?/',
         '<a href="$0" target="_blank" rel="noopener nofollow" title="$0">$0</a>',
         $text);
+}
+
+function randomProxatoreInstance() {
+    preg_match_all('/\|<([^>]+)>/', file_get_contents('https://gitlab.com/octospacc/Proxatore/-/raw/main/README.md'), $matches);
+    $urls = $matches[1];
+    return rtrim($urls[array_rand($urls)], '/');
+}
+
+function base64url_encode(string $data): string {
+    return rtrim(strtr(base64_encode($data), '+/', '-_'), '=');
+}
+
+function base64url_decode(string $data, bool $strict=false): string {
+    return base64_decode(strtr($data, '-_', '+/'), $strict);
+}
+
+function backgroundExec(string $command): void {
+    if (explode(' ', php_uname('s'))[0] === "Windows") {
+        pclose(popen("start /B {$command} &", 'r'));
+    } else {
+        shell_exec("{$command} &");
+    }
+}
+
+function hash_base64(string $algo, string $data): string {
+    return base64url_encode(hash($algo, $data, true));
 }

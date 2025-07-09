@@ -9,6 +9,7 @@ const PLATFORMS = [
     'spaccbbs' => ['bbs.spacc.eu.org'],
     'github' => ['github.com'],
     'github-gist' => ['gist.github.com'],
+    'aliexpress' => ['aliexpress.com'],
     'bilibili' => ['bilibili.com'],
     'bluesky' => ['bsky.app'],
     'facebook' => ['facebook.com', 'm.facebook.com'],
@@ -29,7 +30,7 @@ const PLATFORMS = [
     'youtube' => ['youtube.com', 'm.youtube.com'],
 ];
 
-const PLATFORMS_FAKESUBDOMAINS = ['pinterest.com'];
+const PLATFORMS_FAKESUBDOMAINS = ['aliexpress.com', 'pinterest.com'];
 
 const PLATFORMS_USERSITES = ['altervista.org', 'blogspot.com', 'medium.com', 'wordpress.com'];
 
@@ -47,6 +48,7 @@ const PLATFORMS_SHORTHANDS = [
 const PLATFORMS_PROXIES = [
     'bluesky' => ['fxbsky.app'],
     'instagram' => ['ddinstagram.com', 'd.ddinstagram.com', 'kkinstagram.com'],
+    'reddit' => ['vxreddit.com'],
     'threads' => ['vxthreads.net'],
     'tiktok' => ['vxtiktok.com'],
     'twitter' => ['fxtwitter.com', 'vxtwitter.com', 'fixvx.com'],
@@ -78,11 +80,10 @@ const PLATFORMS_API = [
     ],
 ];
 
-const PLATFORMS_COBALT = ['instagram', 'bilibili'];
+const PLATFORMS_USEPROXY = ['bluesky', 'reddit', 'twitter', 'x'];
+const PLATFORMS_COBALT = ['instagram', 'threads', 'bilibili'];
 
 const PLATFORMS_FAKE404 = ['telegram'];
-
-const PLATFORMS_USEPROXY = ['bluesky', 'twitter', 'x'];
 
 const PLATFORMS_ORDERED = ['telegram'];
 
@@ -92,7 +93,7 @@ const PLATFORMS_WEBVIDEO = ['raiplay'];
 
 const PLATFORMS_NOIMAGES = ['altervista.org', 'wordpress.com', 'medium'];
 
-const PLATFORMS_NOEMBED = ['medium', 'pinterest'];
+const PLATFORMS_NOEMBED = ['aliexpress', 'medium', 'pinterest'];
 
 const PLATFORMS_PARAMS = [
     'facebook' => true,
@@ -131,6 +132,7 @@ const EMBEDS_SUFFIXES = [
     'github-gist' => '.pibb',
     'instagram' => '/embed/captioned/',
     'telegram' => '?embed=1&mode=tme',
+    'threads' => '/embed',
 ];
 
 define('EMBEDS_PREFIXES_FULL', [

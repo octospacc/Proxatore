@@ -25,6 +25,14 @@ iframe {
     border: none;
 }
 
+details > summary {
+    cursor: pointer;
+}
+
+form > details > ul > li {
+    list-style: none;
+}
+
 .container {
     max-width: 1200px;
     padding: 20px;
@@ -126,8 +134,16 @@ body.normal .history-item:hover {
     font-size: 0.9rem;
     color: #606770;
 }
-.history-item .title {
+.history-item .title.top {
     display: none;
+}
+
+.history-item .title a {
+    color: unset;
+    text-decoration: none;
+}
+.history-item .title a[href] {
+    text-decoration: dotted underline;
 }
 
 .img {
@@ -185,6 +201,10 @@ img[src=""], video[src=""] {
     background-color: #155dbb;
 }
 
+ul.platforms {
+    column-width: 12em;
+}
+
 ul.platforms a {
     text-decoration: none;
 }
@@ -213,7 +233,7 @@ ul.platforms a {
         max-width: 100%;
         width: 100%;
     }
-    .history-item .title {
+    .history-item .title.top {
         display: block;
     }
 }

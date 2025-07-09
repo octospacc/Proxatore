@@ -21,12 +21,19 @@ function loadHistory(): array {
 }
 
 function saveHistory(array $entry): void {
+    if (!SAVE_HISTORY) {
+        return;
+    }
+    // mkdir(HISTORY_FOLDER . $entry['platform'], 0777, true);
+    // TODO truncate relativeurl & append hash: base64url_encode(sha1($entry['relativeurl'], true))
+    // file_put_contents(HISTORY_FOLDER . $entry['platform'] . '/' . urlencode($entry['relativeurl']) . '.json', dataJsonEncode($entry));
+    // backgroundExec("php cacher.php {$entry['platform']} " . urlencode($entry['relativeurl']));
     if (inPlatformArray($entry['platform'], PLATFORMS_FAKE404)) {
         $history = searchExactHistory($entry['platform'], implode('/', array_slice(explode('/', $entry['relativeurl']), -1)));
         if (sizeof($history)) {
             unset($history[0]['relativeurl']);
             unset($entry['relativeurl']);
-            if (json_encode($history[0], JSON_UNESCAPED_SLASHES) === json_encode($entry, JSON_UNESCAPED_SLASHES)) {
+            if (dataJsonEncode($history[0]) === dataJsonEncode($entry)) {
                 return;
             } else {
                 // TODO update cache of main page
@@ -41,19 +48,19 @@ function saveHistory(array $entry): void {
                 ($item['relativeurl'] !== $entry['relativeurl']));
     });
     $history[] = $entry;
-    $lines = array_map(fn($item) => json_encode($item, JSON_UNESCAPED_SLASHES), $history);
+    $lines = array_map(fn($item) => dataJsonEncode($item), $history);
     file_put_contents(HISTORY_FILE, implode(PHP_EOL, $lines) . PHP_EOL, LOCK_EX);
 }
 
 function searchHistory(string $query): array {
     $results = $fake404 = [];
     foreach (loadHistory() as $entry) {
-        if (stripos(json_encode($entry, JSON_UNESCAPED_SLASHES), $query) !== false) {
+        if (stripos(dataJsonEncode($entry), $query) !== false) {
             if (inPlatformArray($entry['platform'], PLATFORMS_FAKE404)) {
                 $entry2 = $entry;
                 unset($entry2['relativeurl']);
                 foreach ($fake404 as $item) {
-                    if (json_encode($entry2, JSON_UNESCAPED_SLASHES) === json_encode($item, JSON_UNESCAPED_SLASHES)) {
+                    if (dataJsonEncode($entry2) === dataJsonEncode($item)) {
                         goto skip;
                     }
                 }
@@ -63,12 +70,16 @@ function searchHistory(string $query): array {
             skip:
         }
     }
-    return $results;
+    return array_slice($results, 0, SEARCH_LIMIT);
 }
 
 function searchExactHistory(string $platform, string $relativeUrl): array {
-    return searchHistory(json_encode([
+    return searchHistory(dataJsonEncode([
         'platform' => $platform,
         'relativeurl' => $relativeUrl,
-    ], JSON_UNESCAPED_SLASHES));
+    ]));
+}
+
+function dataJsonEncode(mixed $data): string {
+    return json_encode($data, JSON_UNESCAPED_SLASHES);
 }

@@ -35,10 +35,15 @@ if ($search = readProxatoreParam('search')) {
     if ($url = parseAbsoluteUrl($path)) {
         return redirectTo($url);
     }
+
     $segments = explode('/', $path);
     $platform = null;
     $upstream = $segments[0] ?? null;
     $relativeUrl = implode('/', array_slice($segments, 1));
+
+    if ($upstream === $_SERVER['SERVER_NAME']) {
+        return redirectTo($relativeUrl);
+    }
 
     // after refactoring this now treats aliases as canonical, we should decide on the matter
     if (str_starts_with($upstream, '__') && str_ends_with($upstream, '__')) {
@@ -190,6 +195,7 @@ if ($search = readProxatoreParam('search')) {
         <?= historyItemHtml($item, isset($finalData['result'])) ?>
     <?php endforeach; ?>
 <?php endif; ?>
+<p style="text-align: right;">Issues? Switch to a <a href="<?= SCRIPT_NAME; ?>__randominstance__/<?= $path; ?>">random instance</a>.</p>
 <?php if (($finalData ?? null) && !readProxatoreBool('embedfirst') && readProxatoreParam('viewmode') !== 'embed' /* && !inPlatformArray($finalData['platform'], PLATFORMS_NOEMBED) */) iframeHtml($finalData); ?>
 </div>
 <script><?php require 'script.js'; ?></script>

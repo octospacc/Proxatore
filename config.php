@@ -27,13 +27,19 @@ const OPTIONS_DEFAULTS = [
     //'format' => 'html',
 ];
 
+const SAVE_HISTORY = true;
+const SEARCH_LIMIT = 30;
+
 const GOOGLE_VERIFICATION = 'HjNf-db8xb7lkRNgD3Q8-qeF1lWsbxmCZptRyjLBnrI';
 const BING_VERIFICATION = '45DC0FC265FF4059D48677970BE86150';
 
 define('USER_AGENT', "Proxatore/2025/1 ({$_SERVER['SERVER_NAME']})");
 
 define('SCRIPT_NAME', ($_SERVER['SCRIPT_NAME'] === '/' ? '/' : "{$_SERVER['SCRIPT_NAME']}/"));
-define('HISTORY_FILE', './Proxatore.history.jsonl');
+
+const HISTORY_FILE = './Proxatore.history.jsonl';
+const HISTORY_FOLDER = './history.d/';
+const CACHE_FOLDER = './cache.d/';
 
 // const OPTIONS_OVERRIDES = [
 //     'bbs.spacc.eu.org' => [

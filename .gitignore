@@ -1,1 +1,4 @@
 *.history.jsonl
+history.jsonl
+history.d/
+cache.d/

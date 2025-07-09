@@ -10,9 +10,9 @@ function iframeHtml(array $data): void {
     $relativeUrl = $data['result']['relativeurl'];
     if (inPlatformArray($platform, PLATFORMS_ORDERED)) { ?>
         <div>
-            <a class="button"
+            <a class="button" rel="nofollow"
                 href="<?= abs(end(explode('/', $relativeUrl))-1) ?>">⬅️ Previous</a>
-            <a class="button" style="float:right;"
+            <a class="button" rel="nofollow" style="float:right;"
                 href="<?= end(explode('/', $relativeUrl))+1 ?>">➡️ Next</a>
         </div>
     <?php }
@@ -23,14 +23,16 @@ function iframeHtml(array $data): void {
     <?php
 }
 
+function titleHtml(array $item, string $class, bool $isSingle): void { ?> <p class="title <?= $class ?>">
+    <strong><a <?php if (!$isSingle) echo 'href="'. htmlspecialchars(SCRIPT_NAME . makeInternalItemUrl($item)) . '"'; ?>><?= htmlspecialchars($item['title']) ?></a></strong>
+    <small><?= htmlspecialchars($item['platform']) ?><!-- <?= htmlspecialchars($item['datetime'] ?? '') ?> --></small>
+</p> <?php }
+
 function historyItemHtml(array $item, bool $isSingle): void { ?> <div class="history-item <?php
     similar_text($item['title'], $item['description'], $percent);
     if ($percent > 90) echo 'ellipsize';
 ?>">
-    <p class="title">
-        <strong><?= htmlspecialchars($item['title']) ?></strong>
-        <small><?= htmlspecialchars($item['platform']) ?><!-- <?= htmlspecialchars($item['datetime'] ?? '') ?> --></small>
-    </p>
+    <?= titleHtml($item, 'top', $isSingle) ?>
     <div style="text-align: center;">
         <?php if (($video = $item['htmlvideo'] ?: $item['video']) && $isSingle): ?>
             <div class="video">
@@ -53,10 +55,7 @@ function historyItemHtml(array $item, bool $isSingle): void { ?> <div class="his
         <?php endforeach; ?>
     </div>
     <div>
-        <p>
-            <strong><?= htmlspecialchars($item['title']) ?></strong>
-            <small><?= htmlspecialchars($item['platform']) ?><!-- <?= htmlspecialchars($item['datetime'] ?? '') ?> --></small>
-        </p>
+        <?= titleHtml($item, 'bottom', $isSingle) ?>
         <?php if ($item['description']): ?>
             <p class="description"><?= linkifyUrls(htmlspecialchars($item['description'])) ?></p>
         <?php endif; ?>
