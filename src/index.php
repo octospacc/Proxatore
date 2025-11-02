@@ -41,7 +41,7 @@ if ($search = readProxatoreParam('search')) {
     $upstream = $segments[0] ?? null;
     $relativeUrl = implode('/', array_slice($segments, 1));
 
-    if ($upstream === $_SERVER['SERVER_NAME']) {
+    if ($upstream === $_SERVER['HTTP_HOST']) {
         return redirectTo($relativeUrl);
     }
 
