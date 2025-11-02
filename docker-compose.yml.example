@@ -1,0 +1,19 @@
+services:
+  proxatore:
+    image: ghcr.io/LucentW/proxatore:main
+    # build:
+    #  context: .
+    #  dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - 8080:8080
+    depends_on:
+      - cobalt
+
+  cobalt:
+    image: ghcr.io/imputnet/cobalt:11
+    init: true
+    read_only: true
+    restart: unless-stopped
+    environment:
+      API_URL: "http://cobalt:9000/"

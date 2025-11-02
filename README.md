@@ -27,7 +27,7 @@ This software is free and open-source, and you can host it on your own server, f
 <dl>
     <dt>A web server with PHP</dt>
         <dd>(Currently only tested on nginx with PHP 8.2 and IIS with PHP 8.3, as of May 2025.)</dd>
-    <dt><code>curl</code>, <code>xml</code> and <code>mbstring</code> PHP extensions</dt>
+    <dt><code>curl</code>, <code>dom</code>, <code>mbstring</code>, <code>openssl</code> and <code>xml</code> PHP extensions</dt>
         <dd>The program requires these PHP extensions to be installed and enabled on the server to work.</dd>
 </dl>
 

@@ -82,7 +82,7 @@ function parseAbsoluteUrl(string $str): string|null {
 }
 
 function makeSelfUrl(string $str=''): string {
-    return getRequestProtocol() . '://' . $_SERVER['SERVER_NAME'] . SCRIPT_NAME . $str;
+    return getRequestProtocol() . '://' . $_SERVER['HTTP_HOST'] . SCRIPT_NAME . $str;
 }
 
 function redirectTo(string $url): void {
