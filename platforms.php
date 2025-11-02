@@ -13,6 +13,7 @@ const PLATFORMS = [
     'bilibili' => ['bilibili.com'],
     'bluesky' => ['bsky.app'],
     'facebook' => ['facebook.com', 'm.facebook.com'],
+    // 'giphy' => ['giphy.com'],
     'instagram' => ['instagram.com'],
     //'juxt' => ['juxt.pretendo.network'],
     'medium' => ['medium.com'],
@@ -47,7 +48,7 @@ const PLATFORMS_SHORTHANDS = [
 
 const PLATFORMS_PROXIES = [
     'bluesky' => ['fxbsky.app'],
-    'instagram' => ['ddinstagram.com', 'd.ddinstagram.com', 'kkinstagram.com'],
+    'instagram' => ['ddinstagram.com', 'd.ddinstagram.com', 'kkinstagram.com', 'eeinstagram.com'],
     'reddit' => ['vxreddit.com'],
     'threads' => ['vxthreads.net'],
     'tiktok' => ['vxtiktok.com'],
@@ -81,7 +82,7 @@ const PLATFORMS_API = [
 ];
 
 const PLATFORMS_USEPROXY = ['bluesky', 'reddit', 'twitter', 'x'];
-const PLATFORMS_COBALT = ['instagram', 'threads', 'bilibili'];
+const PLATFORMS_COBALT = ['instagram', 'threads', 'bilibili', 'pinterest'];
 
 const PLATFORMS_FAKE404 = ['telegram'];
 
@@ -90,6 +91,8 @@ const PLATFORMS_ORDERED = ['telegram'];
 // const PLATFORMS_VIDEO = ['youtube', 'bilibili']; // ['facebook', 'instagram'];
 
 const PLATFORMS_WEBVIDEO = ['raiplay'];
+
+const PLATFORMS_CSSIMAGES = ['telegram'];
 
 const PLATFORMS_NOIMAGES = ['altervista.org', 'wordpress.com', 'medium'];
 
@@ -120,6 +123,7 @@ const EMBEDS_API = [
 ];
 
 const EMBEDS_PREFIXES_SIMPLE = [
+    'pinterest' => 'assets.pinterest.com/ext/embed.html?id=',
     'tiktok' => 'www.tiktok.com/embed/v3/',
     'twitter' => 'platform.twitter.com/embed/Tweet.html?id=',
 ];
