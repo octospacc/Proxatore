@@ -11,6 +11,7 @@ Proxatore is a content proxy for viewing and embedding media and text from vario
 |<https://proxatore.ct.ws/>|🇬🇧||Only works in browser|
 |<https://octospacc.altervista.org/proxatore/>|🇩🇪|||
 |<https://laprovadialessioalmi.altervista.org/proxatore/>|🇩🇪|⚠️||
+|<https://proxatore.lucy.gq>|🇫🇷|||
 
 Source code mirrors:
 
