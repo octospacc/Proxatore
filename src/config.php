@@ -35,7 +35,10 @@ const BING_VERIFICATION = '45DC0FC265FF4059D48677970BE86150';
 
 define('USER_AGENT', "Proxatore/2025/1 ({$_SERVER['HTTP_HOST']})");
 
-define('SCRIPT_NAME', ($_SERVER['SCRIPT_NAME'] === '/' ? '/' : "{$_SERVER['SCRIPT_NAME']}/"));
+// FIXME: this must recognize whether there's a rewrite webserver side or not
+// similar to what WordPress does with permalinks
+// define('SCRIPT_NAME', ($_SERVER['SCRIPT_NAME'] === '/' ? '/' : "{$_SERVER['SCRIPT_NAME']}/"));
+define('SCRIPT_NAME', '/');
 
 const HISTORY_FILE = '/run/Proxatore.history.jsonl';
 const HISTORY_FOLDER = '/run/history.d/';
