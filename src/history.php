@@ -24,10 +24,10 @@ function saveHistory(array $entry): void {
     if (!SAVE_HISTORY) {
         return;
     }
-    // mkdir(HISTORY_FOLDER . $entry['platform'], 0777, true);
+    mkdir(HISTORY_FOLDER . $entry['platform'], 0777, true);
     // TODO truncate relativeurl & append hash: base64url_encode(sha1($entry['relativeurl'], true))
-    // file_put_contents(HISTORY_FOLDER . $entry['platform'] . '/' . urlencode($entry['relativeurl']) . '.json', dataJsonEncode($entry));
-    // backgroundExec("php cacher.php {$entry['platform']} " . urlencode($entry['relativeurl']));
+    file_put_contents(HISTORY_FOLDER . $entry['platform'] . '/' . urlencode($entry['relativeurl']) . '.json', dataJsonEncode($entry));
+    backgroundExec("php cacher.php {$entry['platform']} " . urlencode($entry['relativeurl']));
     if (inPlatformArray($entry['platform'], PLATFORMS_FAKE404)) {
         $history = searchExactHistory($entry['platform'], implode('/', array_slice(explode('/', $entry['relativeurl']), -1)));
         if (sizeof($history)) {

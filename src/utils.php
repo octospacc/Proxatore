@@ -107,12 +107,15 @@ function getRequestProtocol(): string {
 function fetchContent(string $url, int $redirects=-1): array {
     $ch = curl_init();
     $useragent = 'curl/' . curl_version()['version']; // format the UA like curl CLI otherwise some sites can't behave
+    // $useragent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36';
+    // $useragent = 'node';
     curl_setopt($ch, CURLOPT_URL, $url);
     curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, !ALLOW_NONSECURE_SSL);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
     curl_setopt($ch, CURLOPT_MAXREDIRS, $redirects);
     curl_setopt($ch, CURLOPT_USERAGENT, $useragent);
+    // curl_setopt($ch, CURLOPT_HTTPHEADER, ['connection: keep-alive', 'accept: */*', 'accept-language: *', 'sec-fetch-mode: cors', 'user-agent: node', 'accept-encoding: gzip, deflate']);
     $data = [
         'body' => curl_exec($ch),
         'code' => curl_getinfo($ch, CURLINFO_HTTP_CODE),
@@ -381,6 +384,16 @@ function fetchPageMedia(array &$item): void {
         $html = fetchContent(makeMediaScrapeUrl($item))['body'];
         if (!$item['result']['video']) {
             $item['result']['video'] = $cobaltVideo ?? getAnyVideoUrl($html) ?? '';
+        }
+        if (inPlatformArray($platform, PLATFORMS_CSSIMAGES)) {
+            $xpath = new DOMXPath(htmldom($html));
+            $imgs = $xpath->query('//a[@href][@style]');
+            $sep = ';background-image:url(\'';
+            if (sizeof($imgs) && ($img = $imgs[0]) && ($style = $img->getAttribute('style')) && str_contains($style, $sep)) {
+                if ($img = explode('\')', explode($sep, $style)[1])[0]) {
+                    $item['result']['image'] =  $img;
+                }
+            }
         }
         if (!inPlatformArray($platform, PLATFORMS_NOIMAGES) /* !$immediateResult['image'] */) {
             $item['result']['images'] = getHtmlAttributes($html, 'img', 'src');
