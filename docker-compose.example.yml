@@ -1,6 +1,6 @@
 services:
   proxatore:
-    image: ghcr.io/LucentW/proxatore:main
+    image: ghcr.io/lucentw/proxatore:main
     # build:
     #  context: .
     #  dockerfile: Dockerfile
