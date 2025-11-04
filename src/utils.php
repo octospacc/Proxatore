@@ -62,6 +62,7 @@ function platformMapGet(string $platform, array $array): mixed {
 }
 
 function lstrip(string $str, string $sub, int $num): string {
+    if (!str_contains($str, $sub)) return $str;
     return implode($sub, array_slice(explode($sub, $str), $num));
 }
 
