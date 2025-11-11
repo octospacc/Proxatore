@@ -25,6 +25,7 @@ const PLATFORMS = [
     'telegram' => ['t.me', 'telegram.me'],
     'threads' => ['threads.net', 'threads.com'],
     'tiktok' => ['tiktok.com'],
+    'twitch' => ['twitch.tv', 'clips.twitch.tv'],
     'twitter' => ['twitter.com'],
     'x' => ['x.com'],
     'xiaohongshu' => ['xiaohongshu.com'],
@@ -90,7 +91,7 @@ const PLATFORMS_ORDERED = ['telegram'];
 
 // const PLATFORMS_VIDEO = ['youtube', 'bilibili']; // ['facebook', 'instagram'];
 
-const PLATFORMS_WEBVIDEO = ['raiplay'];
+const PLATFORMS_WEBVIDEO = ['raiplay', 'twitch'];
 
 const PLATFORMS_CSSIMAGES = ['telegram'];
 
