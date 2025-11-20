@@ -170,11 +170,16 @@ function makeEmbedUrl(string $platform, string $relativeUrl, array $meta=null): 
     return "https://{$url}";
 }
 
-function makeDataScrapeUrl(string $platform, string $relativeUrl): string {
-    return 'https://' . ((inPlatformArray($platform, PLATFORMS_USEPROXY)
+function makeDataScrapeUrl(string $platform, string $relativeUrl, bool $ignoreOembed=false): string {
+    $url = 'https://' . ((inPlatformArray($platform, PLATFORMS_USEPROXY)
         ? (PLATFORMS_PROXIES[$platform][0] ?: PLATFORMS[$platform][0])
         : PLATFORMS[$platform][0]
     ) ?: $platform) . '/' . $relativeUrl;
+    if (!$ignoreOembed && $oembed = PLATFORMS_OEMBED[$platform] ?? null) {
+        return "$oembed?format=json&url=" . urlencode($url);
+    } else {
+        return $url;
+    }
 }
 
 function makeMediaScrapeUrl(array $item): string {
@@ -202,6 +207,9 @@ function parseMetaTags(DOMDocument $doc): array {
         if ($meta->hasAttribute('name') || $meta->hasAttribute('property')) {
             $tags[$meta->getAttribute('name') ?: $meta->getAttribute('property')] = $meta->getAttribute('content');
         }
+    }
+    if ($title = $doc->getElementsByTagName('title')[0] ?? null) {
+        $tags['title'] = $title->textContent;
     }
     return $tags;
 }
@@ -236,14 +244,14 @@ function makeResultObject(string $platform, string $relativeUrl, array $meta): a
         //'request_time' => time(),
         'locale' => $meta['og:locale'] ?? '',
         'type' => $meta['og:type'] ?? '',
-        'image' => $meta['og:image'] ?? $meta['twitter:image'] ?? '',
-        'video' => $meta['og:video'] ?? $meta['og:video:url'] ?? '',
+        'image' => $meta['og:image'] ?? $meta['og:image:url'] ?? $meta['og:image:secure_url'] ?? $meta['twitter:image'] ?? '',
+        'video' => $meta['og:video'] ?? $meta['og:video:url'] ?? $meta['og:video:secure_url'] ?? '',
         'videotype' => $meta['og:video:type'] ?? '',
-        'htmlvideo' => $meta['og:video'] ?? $meta['og:video:url'] ?? '',
-        'audio' => $meta['og:audio'] ?? '',
-        'title' => $meta['og:title'] ?? $meta['og:title'] ?? $meta['twitter:title'] ?? '',
+        'htmlvideo' => $meta['og:video'] ?? $meta['og:video:url'] ?? $meta['og:video:secure_url'] ?? '',
+        'audio' => $meta['og:audio'] ?? $meta['og:audio:url'] ?? $meta['og:audio:secure_url'] ?? '',
+        'title' => $meta['og:title'] ?? $meta['og:title'] ?? $meta['twitter:title'] ?? $meta['title'] ?? '',
         //'author' => $meta['twitter:creator'] ?? $meta['og:site_name'] ?? '',
-        'description' => $meta['og:description'] ?? $meta['description'] ?? '',
+        'description' => $meta['og:description'] ?? $meta['twitter:description'] ?? $meta['description'] ?? '',
         'images' => [],
     ];
     if (inPlatformArray($platform, PLATFORMS_WEBVIDEO) && !$data['video']) {
@@ -317,13 +325,25 @@ function getPageData($platform, $relativeUrl): array|null {
         } else {
             $relativeUrl = parse_url($relativeUrl, PHP_URL_PATH);
         }
-        $data['doc'] = htmldom($data['body']);
-        $data['meta'] = parseMetaTags($data['doc']);
+        if (isset(PLATFORMS_OEMBED[$platform])) {
+            // this obviously misses description. TODO, maybe: still fetch the HTML to get extra data if possible?
+            $json = json_decode($data['body']);
+            $data['meta'] = [
+                'title' => $json->title,
+                'og:image' => $json->thumbnail_url,
+            ];
+            if ($platform === 'youtube') {
+                $data['meta']['og:video'] = makeDataScrapeUrl($platform, $relativeUrl, true);
+                $data['meta']['og:video:type'] = 'text/html';
+            }
+        } else {
+            $data['doc'] = htmldom($data['body']);
+            $data['meta'] = parseMetaTags($data['doc']);
+        }
         $data['result'] = makeResultObject($platform, $relativeUrl, $data['meta']);
         return $data;
-    } else {
-        return null;
     }
+    return null;
 }
 
 function getPlatformRedirectionUrl($upstream, $relativeUrl) {

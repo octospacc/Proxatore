@@ -92,22 +92,26 @@ if ($search = readProxatoreParam('search')) {
         http_response_code(404);
     }
 }
+
+$output = [
+    'title' => $finalData['result']['title'],
+    'description' => htmlspecialchars($finalData['result']['description'] ?? ucfirst(APP_DESCRIPTION)),
+];
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title><?= APP_NAME ?></title>
-<meta name="description" content="<?= htmlspecialchars($finalData['result']['description'] ?? ucfirst(APP_DESCRIPTION)) ?>" />
-<meta property="og:title" content="<?= htmlspecialchars($finalData['result']['title'] ?? APP_NAME) ?>" />
-<meta property="og:description" content="<?= htmlspecialchars($finalData['result']['description'] ?? ucfirst(APP_DESCRIPTION)) ?>" />
+<title><?= htmlspecialchars(APP_NAME . ($output['title'] ? " - {$output['title']}" : '')) ?></title>
+<meta name="description" content="<?= $output['description'] ?>" />
+<meta name="twitter:title" property="og:title" content="<?= htmlspecialchars($output['title'] ?? APP_NAME) ?>" />
+<meta name="twitter:description" property="og:description" content="<?= $output['description'] ?>" />
 <!-- <meta property="og:locale" content="<?= htmlspecialchars($finalData['result']['locale'] ?? '') ?>" /> -->
 <meta property="og:type" content="<?= htmlspecialchars($finalData['result']['type'] ?? '') ?>" />
 <?php if ($image = $finalData['result']['image'] ?? null): ?>
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:image" content="<?= htmlspecialchars($image) ?>" />
-    <meta property="og:image" content="<?= htmlspecialchars($image) ?>" />
+    <meta name="twitter:image" property="og:image" content="<?= htmlspecialchars($image) ?>" />
 <?php endif; ?>
 <?php if ($video = $finalData['result']['video'] ?? null): ?>
     <meta property="og:video" content="<?= htmlspecialchars($video) ?>" />

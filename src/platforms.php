@@ -99,6 +99,10 @@ const PLATFORMS_NOIMAGES = ['altervista.org', 'wordpress.com', 'medium'];
 
 const PLATFORMS_NOEMBED = ['aliexpress', 'medium', 'pinterest'];
 
+const PLATFORMS_OEMBED = [
+    'youtube' => 'https://www.youtube.com/oembed',
+];
+
 const PLATFORMS_PARAMS = [
     'facebook' => true,
     'xiaohongshu' => true,
