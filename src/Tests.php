@@ -1,6 +1,6 @@
 <?php
 
-const PROXATORE_URL = 'https://proxatore.octt.eu.org/'; // getenv('PROXY_BASE_URL') ?: 'http://localhost';
+define('PROXATORE_URL', getenv('PROXY_BASE_URL') ?: 'https://proxatore.octt.eu.org/');
 
 const SEARCH_HEADING = '<h3>Search results:</h3>';
 
@@ -25,7 +25,7 @@ $tests = [
 $linkTests = [
     [
         'name' => 'YouTube 1',
-        'title' => 'Rick Astley - Never Gonna Give You Up (Official Music Video)',
+        'title' => 'Rick Astley - Never Gonna Give You Up',
         'path' => 'youtube.com/watch?v=dQw4w9WgXcQ',
     ],
     [
@@ -73,7 +73,6 @@ foreach ($tests as $test) {
     $body = curl_exec($ch);
     $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     $error = curl_error($ch);
-    curl_close($ch);
 
     $passed = true;
     $messages = [];

@@ -74,10 +74,13 @@ function searchHistory(string $query): array {
 }
 
 function searchExactHistory(string $platform, string $relativeUrl): array {
-    return searchHistory(dataJsonEncode([
-        'platform' => $platform,
-        'relativeurl' => $relativeUrl,
-    ]));
+    $results = [];
+    foreach (loadHistory() as $entry) {
+        if (($entry['platform'] ?? null) === $platform && ($entry['relativeurl'] ?? null) === $relativeUrl) {
+            $results[] = $entry;
+        }
+    }
+    return $results;
 }
 
 function dataJsonEncode(mixed $data): string {

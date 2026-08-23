@@ -94,7 +94,7 @@ if ($search = readProxatoreParam('search')) {
 }
 
 $output = [
-    'title' => $finalData['result']['title'],
+    'title' => $finalData['result']['title'] ?? null,
     'description' => htmlspecialchars($finalData['result']['description'] ?? ucfirst(APP_DESCRIPTION)),
 ];
 ?>
@@ -108,23 +108,42 @@ $output = [
 <meta name="twitter:title" property="og:title" content="<?= htmlspecialchars($output['title'] ?? APP_NAME) ?>" />
 <meta name="twitter:description" property="og:description" content="<?= $output['description'] ?>" />
 <!-- <meta property="og:locale" content="<?= htmlspecialchars($finalData['result']['locale'] ?? '') ?>" /> -->
-<meta property="og:type" content="<?= htmlspecialchars($finalData['result']['type'] ?? '') ?>" />
-<?php if ($image = $finalData['result']['image'] ?? null): ?>
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:image" property="og:image" content="<?= htmlspecialchars($image) ?>" />
-<?php endif; ?>
-<?php if ($video = $finalData['result']['video'] ?? null): ?>
-    <meta property="og:video" content="<?= htmlspecialchars($video) ?>" />
+<?php if ($video = $finalData['result']['video'] ?? null): 
+    $streamPath = "__stream__/{$finalData['result']['platform']}/" . (str_contains($finalData['result']['relativeurl'], '?') ? str_replace('?', '/video.mp4?', $finalData['result']['relativeurl']) : $finalData['result']['relativeurl'] . '/video.mp4');
+    $streamUrl = makeSelfUrl($streamPath);
+?>
+    <meta name="twitter:card" content="player" />
+    <meta property="og:type" content="video.other" />
+    <meta property="og:video" content="<?= htmlspecialchars($streamUrl) ?>" />
+    <meta property="og:video:url" content="<?= htmlspecialchars($streamUrl) ?>" />
+    <meta property="og:video:secure_url" content="<?= htmlspecialchars($streamUrl) ?>" />
     <meta property="og:video:type" content="<?= htmlspecialchars($finalData['result']['videotype'] ?: 'video/mp4') ?>" />
+    <meta property="og:video:width" content="720" />
+    <meta property="og:video:height" content="1280" />
+    <meta name="twitter:player:stream" content="<?= htmlspecialchars($streamUrl) ?>" />
+    <meta name="twitter:player:stream:content_type" content="<?= htmlspecialchars($finalData['result']['videotype'] ?: 'video/mp4') ?>" />
+    <meta name="twitter:player:width" content="720" />
+    <meta name="twitter:player:height" content="1280" />
+<?php elseif ($image = $finalData['result']['image'] ?? null): ?>
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta property="og:type" content="<?= htmlspecialchars($finalData['result']['type'] ?: 'article') ?>" />
+<?php else: ?>
+    <meta property="og:type" content="<?= htmlspecialchars($finalData['result']['type'] ?? '') ?>" />
+<?php endif; ?>
+<?php if ($image = $finalData['result']['image'] ?? null): ?>
+    <meta property="og:image" content="<?= htmlspecialchars($image) ?>" />
+    <meta name="twitter:image" content="<?= htmlspecialchars($image) ?>" />
 <?php endif; ?>
 <?php if ($audio = $finalData['result']['audio'] ?? null): ?>
     <meta property="og:audio" content="<?= htmlspecialchars($audio) ?>" />
     <meta property="og:audio:type" content="audio/mpeg" />
 <?php endif; ?>
 <meta property="og:site_name" content="<?= APP_NAME . ' ' . ($finalData['result']['platform'] ?? '') ?>" />
-<?php if ($result = $finalData['result'] ?? null): ?>
-    <meta property="og:url" content="<?= htmlspecialchars(makeCanonicalItemUrl($result)) ?>" />
-    <link rel="canonical" href="<?= htmlspecialchars(makeCanonicalItemUrl($result)) ?>" />
+<?php if ($result = $finalData['result'] ?? null): 
+    $selfItemUrl = makeSelfUrl(makeInternalItemUrl($result));
+?>
+    <meta property="og:url" content="<?= htmlspecialchars($selfItemUrl) ?>" />
+    <link rel="canonical" href="<?= htmlspecialchars($selfItemUrl) ?>" />
 <?php else: ?>
     <meta property="og:url" content="<?= htmlspecialchars(makeSelfUrl()) ?>" />
     <link rel="canonical" href="<?= htmlspecialchars(makeSelfUrl()) ?>" />

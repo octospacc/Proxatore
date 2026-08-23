@@ -117,13 +117,14 @@ function fetchContent(string $url, int $redirects=-1): array {
     curl_setopt($ch, CURLOPT_MAXREDIRS, $redirects);
     curl_setopt($ch, CURLOPT_USERAGENT, $useragent);
     // curl_setopt($ch, CURLOPT_HTTPHEADER, ['connection: keep-alive', 'accept: */*', 'accept-language: *', 'sec-fetch-mode: cors', 'user-agent: node', 'accept-encoding: gzip, deflate']);
+    curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 3);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 5);
     $data = [
         'body' => curl_exec($ch),
         'code' => curl_getinfo($ch, CURLINFO_HTTP_CODE),
         'url' => curl_getinfo($ch, CURLINFO_REDIRECT_URL) ?: curl_getinfo($ch, CURLINFO_EFFECTIVE_URL),
         // 'error' => curl_error($ch),
     ];
-    curl_close($ch);
     return $data;
 }
 
@@ -132,8 +133,8 @@ function makeInternalBareUrl(string $platform, string $relativeUrl): string {
 }
 
 function makeInternalItemUrl(array $item): string {
-    if ($result = $item['result']) {
-        $item = $result;
+    if (isset($item['result'])) {
+        $item = $item['result'];
     }
     return makeInternalBareUrl($item['platform'], $item['relativeurl']);
 }
@@ -148,7 +149,7 @@ function makeCanonicalItemUrl(array|null $item): string|null {
         : null);
 }
 
-function makeEmbedUrl(string $platform, string $relativeUrl, array $meta=null): string {
+function makeEmbedUrl(string $platform, string $relativeUrl, ?array $meta=null): string {
     $url = null;
     if (isset(EMBEDS_PREFIXES_SIMPLE[$platform])) {
         $url = EMBEDS_PREFIXES_SIMPLE[$platform] . urlLast($relativeUrl);
@@ -217,7 +218,9 @@ function parseMetaTags(DOMDocument $doc): array {
 function htmldom(string $body): DOMDocument {
     libxml_use_internal_errors(true);
     $doc = new DOMDocument();
-    $doc->loadHTML(mb_convert_encoding($body, 'HTML-ENTITIES', 'UTF-8'));
+    if (!empty($body)) {
+        $doc->loadHTML('<?xml encoding="UTF-8">' . $body);
+    }
     libxml_clear_errors();
     return $doc;
 }
@@ -289,7 +292,7 @@ function getQueryArray(): array {
     // }
 }
 
-function readBoolParam(string $key, bool|null $default=null, array $array=null): bool|null {
+function readBoolParam(string $key, bool|null $default=null, ?array $array=null): bool|null {
     if (!$array) {
         $array = getQueryArray();
     }
@@ -301,12 +304,12 @@ function readBoolParam(string $key, bool|null $default=null, array $array=null):
     }
 }
 
-function readProxatoreBool(string $key, array $array=null): bool|null {
+function readProxatoreBool(string $key, ?array $array=null): bool|null {
     return readBoolParam("proxatore-{$key}", OPTIONS_DEFAULTS[$key], $array);
     // TODO handle domain HTTP referer overrides
 }
 
-function readProxatoreParam(string $key, array $array=null): string|null {
+function readProxatoreParam(string $key, ?array $array=null): string|null {
     if (!$array) {
         $array = getQueryArray();
     }
@@ -353,22 +356,38 @@ function getPlatformRedirectionUrl($upstream, $relativeUrl) {
         trim(lstrip(fetchContent(makeInternalBareUrl($upstream, $relativeUrl), 1)['url'], '/', 3), '/'));
 }
 
-function postRequest(string $url, string $body, array $headers=null): string|false {
-    return file_get_contents($url, false, stream_context_create(['http' => [
-        'header' => $headers,
-        'method' => 'POST',
-        'content' => $body,
-    ]]));
+function postRequest(string $url, string $body, ?array $headers=null): string|false {
+    $ch = curl_init($url);
+    curl_setopt($ch, CURLOPT_POST, true);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, $body);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 15);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, !ALLOW_NONSECURE_SSL);
+    if ($headers) {
+        curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+    }
+    $res = curl_exec($ch);
+    $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    if ($res === false || $code >= 400) {
+        return false;
+    }
+    return $res;
 }
 
 function getCobaltVideo(string $url): string|null {
-    $cobaltData = json_decode(postRequest(COBALT_API, json_encode(['url' => $url]), [
+    $res = postRequest(COBALT_API, json_encode(['url' => $url]), [
         'Accept: application/json',
         'Content-Type: application/json',
-    ]));
-    if ($cobaltData->status === 'redirect' && strpos($cobaltData->url, '.mp4')) {
+    ]);
+    if (!$res) return null;
+    $cobaltData = json_decode($res);
+    if (!is_object($cobaltData) || empty($cobaltData->status)) {
+        return null;
+    }
+    if ($cobaltData->status === 'redirect' && !empty($cobaltData->url) && str_contains($cobaltData->url, '.mp4')) {
         return $cobaltData->url;
-    } else if ($cobaltData->status === 'tunnel' && strpos($cobaltData->filename, '.mp4')) {
+    } else if ($cobaltData->status === 'tunnel' && !empty($cobaltData->filename) && str_contains($cobaltData->filename, '.mp4')) {
         return SCRIPT_NAME . '__cobaltproxy__/_/' . lstrip($cobaltData->url, '/', 3);
     } else {
         return null;
@@ -458,18 +477,94 @@ function streamFile(string $url, string $mime): void {
 }
 
 // TODO: redesign the endpoint names, they're kind of a mess
+function streamDirectVideo(string $url): void {
+    while (ob_get_level()) {
+        ob_end_clean();
+    }
+    
+    $ch = curl_init($url);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, false);
+    curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+    curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 120);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, !ALLOW_NONSECURE_SSL);
+    curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+    
+    if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] === 'HEAD') {
+        curl_setopt($ch, CURLOPT_NOBODY, true);
+    }
+    
+    if (isset($_SERVER['HTTP_RANGE'])) {
+        curl_setopt($ch, CURLOPT_RANGE, str_replace('bytes=', '', $_SERVER['HTTP_RANGE']));
+    }
+    
+    curl_setopt($ch, CURLOPT_HEADERFUNCTION, function($curl, $header) {
+        $len = strlen($header);
+        $headerParts = explode(':', $header, 2);
+        if (count($headerParts) == 2) {
+            $name = strtolower(trim($headerParts[0]));
+            if (in_array($name, ['content-type', 'content-length', 'content-range', 'accept-ranges'])) {
+                header(trim($header));
+            }
+        } else if (str_starts_with($header, 'HTTP/')) {
+            $status = (int)explode(' ', $header)[1];
+            if ($status === 200 || $status === 206) {
+                http_response_code($status);
+            }
+        }
+        return $len;
+    });
+    
+    curl_exec($ch);
+    die();
+}
+
 function handleApiRequest(array $segments): void {
-	$api = substr($segments[0], 2, -2);
+    $api = substr($segments[0], 2, -2);
     $platform = $segments[1];
     $relativeUrl = implode('/', array_slice($segments, 2));
-    if (($api === 'proxy' || $api === 'media')) {
+    if ($api === 'stream' || $api === 'videoproxy') {
+        if (str_ends_with($relativeUrl, '/video.mp4')) {
+            $relativeUrl = substr($relativeUrl, 0, -10);
+        }
+        $hist = searchExactHistory($platform, $relativeUrl);
+        if (!empty($hist[0]['video'])) {
+            streamDirectVideo($hist[0]['video']);
+        }
+        $data = getPageData($platform, $relativeUrl);
+        if ($data) {
+            fetchPageMedia($data);
+            if (!empty($data['result']['video'])) {
+                streamDirectVideo($data['result']['video']);
+            }
+        }
+        http_response_code(404);
+        die();
+    } else if (($api === 'proxy' || $api === 'media')) {
         if ($platform === 'youtube') {
             header('Location: ' . getYoutubeStreamUrl($relativeUrl));
-        } else if ($api === 'media' && end($segments) === '0') {
-            $relativeUrl = substr($relativeUrl, 0, -2);
-            $data = getPageData($platform, $relativeUrl)['result'];
-            if ($url = ($data['video'] ?: $data['image'])) {
+        } else if ($api === 'media' && is_numeric(explode('.', end($segments))[0])) {
+            $relativeUrl = implode('/', array_slice($segments, 2, -1));
+            if (!empty($_SERVER['QUERY_STRING'])) {
+                $relativeUrl .= '?' . $_SERVER['QUERY_STRING'];
+            }
+            $data = getPageData($platform, $relativeUrl)['result'] ?? null;
+            if (empty($data['video'])) {
+                $hist = searchExactHistory($platform, $relativeUrl);
+                if (!empty($hist[0])) {
+                    $data = $hist[0];
+                }
+            }
+            $count = (int)explode('.', end($segments))[0];
+            $url = null;
+            if ($count === 0 && !empty($data['video'])) {
+                $url = $data['video'];
+            } else if (!empty($data['image'])) {
+                $url = $data['image'];
+            }
+            if ($url) {
                 header('Location: ' . $url);
+                die();
             }
         }
     } else if ($api === 'fileproxy') {
