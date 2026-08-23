@@ -527,11 +527,21 @@ function handleApiRequest(array $segments): void {
         if (str_ends_with($relativeUrl, '/video.mp4')) {
             $relativeUrl = substr($relativeUrl, 0, -10);
         }
-        $hist = searchExactHistory($platform, $relativeUrl);
+        $fullRelUrl = $relativeUrl;
+        if (!empty($_SERVER['QUERY_STRING'])) {
+            $fullRelUrl = (str_ends_with($relativeUrl, '/') ? $relativeUrl : $relativeUrl . '/') . '?' . $_SERVER['QUERY_STRING'];
+        }
+        $hist = searchExactHistory($platform, $fullRelUrl);
+        if (empty($hist)) {
+            $hist = searchExactHistory($platform, $relativeUrl);
+        }
+        if (empty($hist) && !empty($_SERVER['QUERY_STRING'])) {
+            $hist = searchExactHistory($platform, rtrim($relativeUrl, '/') . '?' . $_SERVER['QUERY_STRING']);
+        }
         if (!empty($hist[0]['video'])) {
             streamDirectVideo($hist[0]['video']);
         }
-        $data = getPageData($platform, $relativeUrl);
+        $data = getPageData($platform, !empty($_SERVER['QUERY_STRING']) ? $fullRelUrl : $relativeUrl);
         if ($data) {
             fetchPageMedia($data);
             if (!empty($data['result']['video'])) {

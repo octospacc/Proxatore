@@ -36,10 +36,14 @@ if ($search = readProxatoreParam('search')) {
         return redirectTo($url);
     }
 
-    $segments = explode('/', $path);
+    $pathOnly = parse_url($path, PHP_URL_PATH) ?? '';
+    $segments = explode('/', $pathOnly);
     $platform = null;
     $upstream = $segments[0] ?? null;
     $relativeUrl = implode('/', array_slice($segments, 1));
+    if (!empty($_SERVER['QUERY_STRING'])) {
+        $relativeUrl .= '?' . $_SERVER['QUERY_STRING'];
+    }
 
     if ($upstream === $_SERVER['HTTP_HOST']) {
         return redirectTo($relativeUrl);
@@ -109,8 +113,14 @@ $output = [
 <meta name="twitter:description" property="og:description" content="<?= $output['description'] ?>" />
 <!-- <meta property="og:locale" content="<?= htmlspecialchars($finalData['result']['locale'] ?? '') ?>" /> -->
 <?php if ($video = $finalData['result']['video'] ?? null): 
-    $streamPath = "__stream__/{$finalData['result']['platform']}/" . (str_contains($finalData['result']['relativeurl'], '?') ? str_replace('?', '/video.mp4?', $finalData['result']['relativeurl']) : $finalData['result']['relativeurl'] . '/video.mp4');
-    $streamUrl = makeSelfUrl($streamPath);
+    $relUrl = $finalData['result']['relativeurl'];
+    if (str_contains($relUrl, '?')) {
+        [$relPath, $relQuery] = explode('?', $relUrl, 2);
+        $streamRel = rtrim($relPath, '/') . '/video.mp4?' . $relQuery;
+    } else {
+        $streamRel = rtrim($relUrl, '/') . '/video.mp4';
+    }
+    $streamUrl = makeSelfUrl("__stream__/{$finalData['result']['platform']}/{$streamRel}");
 ?>
     <meta name="twitter:card" content="player" />
     <meta property="og:type" content="video.other" />

@@ -58,6 +58,7 @@ const PLATFORMS_PROXIES = [
 ];
 
 const PLATFORMS_REDIRECTS = [
+    'fb.watch' => 'facebook',
     'pin.it' => 'pinterest',
     'vm.tiktok.com' => 'tiktok',
     'youtu.be' => 'youtube',
@@ -83,7 +84,7 @@ const PLATFORMS_API = [
 ];
 
 const PLATFORMS_USEPROXY = ['bluesky', 'reddit', 'twitter', 'x'];
-const PLATFORMS_COBALT = ['instagram', 'threads', 'bilibili', 'pinterest'];
+const PLATFORMS_COBALT = ['facebook', 'instagram', 'threads', 'bilibili', 'pinterest'];
 
 const PLATFORMS_FAKE404 = ['telegram'];
 
