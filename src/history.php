@@ -24,7 +24,9 @@ function saveHistory(array $entry): void {
     if (!SAVE_HISTORY) {
         return;
     }
-    mkdir(HISTORY_FOLDER . $entry['platform'], 0777, true);
+    if (!is_dir(HISTORY_FOLDER . $entry['platform'])) {
+        @mkdir(HISTORY_FOLDER . $entry['platform'], 0777, true);
+    }
     // TODO truncate relativeurl & append hash: base64url_encode(sha1($entry['relativeurl'], true))
     file_put_contents(HISTORY_FOLDER . $entry['platform'] . '/' . urlencode($entry['relativeurl']) . '.json', dataJsonEncode($entry));
     backgroundExec("php cacher.php {$entry['platform']} " . urlencode($entry['relativeurl']));
@@ -74,10 +76,13 @@ function searchHistory(string $query): array {
 }
 
 function searchExactHistory(string $platform, string $relativeUrl): array {
-    return searchHistory(dataJsonEncode([
-        'platform' => $platform,
-        'relativeurl' => $relativeUrl,
-    ]));
+    $results = [];
+    foreach (loadHistory() as $entry) {
+        if (($entry['platform'] ?? null) === $platform && ($entry['relativeurl'] ?? null) === $relativeUrl) {
+            $results[] = $entry;
+        }
+    }
+    return $results;
 }
 
 function dataJsonEncode(mixed $data): string {
